@@ -54,11 +54,9 @@ function main() {
   const packageRoot = findPackageRoot(__dirname)
   const pkg = readPackageJson(packageRoot)
   const version = pkg?.version || ''
-  const { getCachedBinaryPath } = require(path.join(
-    packageRoot,
-    'scripts',
-    'binary-utils.cjs',
-  ))
+  const { getCachedBinaryPath } = require(
+    path.join(packageRoot, 'scripts', 'binary-utils.cjs'),
+  )
 
   if (hasFlag('--help-lite')) {
     printHelpLite()

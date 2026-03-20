@@ -39,11 +39,9 @@ function main() {
   const packageRoot = findPackageRoot(__dirname)
   const pkg = readPackageJson(packageRoot)
   const version = pkg?.version || ''
-  const { getCachedBinaryPath } = require(path.join(
-    packageRoot,
-    'scripts',
-    'binary-utils.cjs',
-  ))
+  const { getCachedBinaryPath } = require(
+    path.join(packageRoot, 'scripts', 'binary-utils.cjs'),
+  )
 
   // 1) Prefer native binary (postinstall download)
   if (version) {

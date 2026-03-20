@@ -3,11 +3,7 @@
     "target": "ES2022",
     "module": "ESNext",
     "moduleResolution": "bundler",
-    "lib": [
-      "ES2022",
-      "DOM",
-      "DOM.Iterable"
-    ],
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
     "esModuleInterop": true,
     "strict": false,
     "noImplicitAny": false,
@@ -42,19 +38,29 @@
       "@services/llm": ["src/services/ai/llm.ts"],
       "@services/llmConstants": ["src/services/ai/llmConstants.ts"],
       "@services/llmLazy": ["src/services/ai/llmLazy.ts"],
-      "@services/mentionProcessor": ["src/services/context/mentionProcessor.ts"],
+      "@services/mentionProcessor": [
+        "src/services/context/mentionProcessor.ts"
+      ],
       "@services/mcpCliUtils": ["src/services/mcp/cli-utils.ts"],
       "@services/mcpClient": ["src/services/mcp/index.ts"],
-      "@services/modelAdapterFactory": ["src/services/ai/modelAdapterFactory.ts"],
+      "@services/modelAdapterFactory": [
+        "src/services/ai/modelAdapterFactory.ts"
+      ],
       "@services/notifier": ["src/services/ui/notifier.ts"],
       "@services/oauth": ["src/services/auth/oauth.ts"],
       "@services/openai": ["src/services/ai/openai.ts"],
       "@services/outputStyles": ["src/services/ui/outputStyles.ts"],
       "@services/pluginRuntime": ["src/services/plugins/pluginRuntime.ts"],
-      "@services/pluginValidation": ["src/services/plugins/pluginValidation.ts"],
-      "@services/responseStateManager": ["src/services/ai/responseStateManager.ts"],
+      "@services/pluginValidation": [
+        "src/services/plugins/pluginValidation.ts"
+      ],
+      "@services/responseStateManager": [
+        "src/services/ai/responseStateManager.ts"
+      ],
       "@services/sentry": ["src/services/telemetry/sentry.ts"],
-      "@services/skillMarketplace": ["src/services/plugins/skillMarketplace.ts"],
+      "@services/skillMarketplace": [
+        "src/services/plugins/skillMarketplace.ts"
+      ],
       "@services/statusline": ["src/services/ui/statusline.ts"],
       "@services/systemPrompt": ["src/services/system/systemPrompt.ts"],
       "@services/systemReminder": ["src/services/system/systemReminder.ts"],
@@ -124,4 +130,4 @@
       "module": "NodeNext"
     }
   }
-} 
+}
