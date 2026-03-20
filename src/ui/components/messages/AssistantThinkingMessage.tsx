@@ -1,23 +1,23 @@
-import React from 'react'
-import { Box, Text } from 'ink'
-import { getTheme } from '@utils/theme'
-import { applyMarkdown } from '@utils/text/markdown'
+import React from "react";
+import { Box, Text } from "ink";
+import { getTheme } from "@utils/theme";
+import { applyMarkdown } from "@utils/text/markdown";
 import {
   ThinkingBlock,
   ThinkingBlockParam,
-} from '@anthropic-ai/sdk/resources/index.mjs'
+} from "@anthropic-ai/sdk/resources/index.mjs";
 
 type Props = {
-  param: ThinkingBlock | ThinkingBlockParam
-  addMargin: boolean
-}
+  param: ThinkingBlock | ThinkingBlockParam;
+  addMargin: boolean;
+};
 
 export function AssistantThinkingMessage({
   param: { thinking },
   addMargin = false,
 }: Props): React.ReactNode {
   if (!thinking || thinking.trim().length === 0) {
-    return null
+    return null;
   }
 
   return (
@@ -36,5 +36,5 @@ export function AssistantThinkingMessage({
         </Text>
       </Box>
     </Box>
-  )
+  );
 }

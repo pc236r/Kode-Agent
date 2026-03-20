@@ -1,10 +1,10 @@
-import React from 'react'
-import { Box, Text } from 'ink'
-import { getTheme } from '@utils/theme'
+import React from "react";
+import { Box, Text } from "ink";
+import { getTheme } from "@utils/theme";
 
 type Props = {
-  addMargin: boolean
-}
+  addMargin: boolean;
+};
 
 export function AssistantRedactedThinkingMessage({
   addMargin = false,
@@ -15,5 +15,5 @@ export function AssistantRedactedThinkingMessage({
         ✻ Thinking…
       </Text>
     </Box>
-  )
+  );
 }

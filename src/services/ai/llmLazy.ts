@@ -1,6 +1,6 @@
-import type { AssistantMessage, UserMessage } from '@query'
-import type { Tool, ToolUseContext } from '@tool'
-import type { ModelPointerType } from '@utils/config'
+import type { AssistantMessage, UserMessage } from "@query";
+import type { Tool, ToolUseContext } from "@tool";
+import type { ModelPointerType } from "@utils/config";
 
 export async function queryLLM(
   messages: (UserMessage | AssistantMessage)[],
@@ -9,16 +9,16 @@ export async function queryLLM(
   tools: Tool[],
   signal: AbortSignal,
   options: {
-    safeMode: boolean
-    model: string | ModelPointerType
-    prependCLISysprompt: boolean
-    temperature?: number
-    toolUseContext?: ToolUseContext
-    __testModelManager?: any
-    __testQueryLLMWithPromptCaching?: any
+    safeMode: boolean;
+    model: string | ModelPointerType;
+    prependCLISysprompt: boolean;
+    temperature?: number;
+    toolUseContext?: ToolUseContext;
+    __testModelManager?: any;
+    __testQueryLLMWithPromptCaching?: any;
   },
 ): Promise<AssistantMessage> {
-  const { queryLLM: inner } = await import('@services/llm')
+  const { queryLLM: inner } = await import("@services/llm");
   return inner(
     messages as any,
     systemPrompt,
@@ -26,18 +26,18 @@ export async function queryLLM(
     tools,
     signal,
     options as any,
-  )
+  );
 }
 
 export async function queryQuick(args: {
-  systemPrompt?: string[]
-  userPrompt: string
-  assistantPrompt?: string
-  enablePromptCaching?: boolean
-  signal?: AbortSignal
+  systemPrompt?: string[];
+  userPrompt: string;
+  assistantPrompt?: string;
+  enablePromptCaching?: boolean;
+  signal?: AbortSignal;
 }): Promise<AssistantMessage> {
-  const { queryQuick: inner } = await import('@services/llm')
-  return inner(args as any)
+  const { queryQuick: inner } = await import("@services/llm");
+  return inner(args as any);
 }
 
 export async function verifyApiKey(
@@ -45,14 +45,14 @@ export async function verifyApiKey(
   baseURL?: string,
   provider?: string,
 ): Promise<boolean> {
-  const { verifyApiKey: inner } = await import('@services/llm')
-  return inner(apiKey, baseURL, provider)
+  const { verifyApiKey: inner } = await import("@services/llm");
+  return inner(apiKey, baseURL, provider);
 }
 
 export async function fetchAnthropicModels(
   apiKey: string,
   baseURL?: string,
 ): Promise<any[]> {
-  const { fetchAnthropicModels: inner } = await import('@services/llm')
-  return inner(apiKey, baseURL)
+  const { fetchAnthropicModels: inner } = await import("@services/llm");
+  return inner(apiKey, baseURL);
 }

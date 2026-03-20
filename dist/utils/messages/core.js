@@ -1,410 +1,467 @@
-import { createHash, randomUUID } from 'crypto';
-import { last, memoize } from 'lodash-es';
-import { NO_CONTENT_MESSAGE } from '@services/llmConstants';
-export const INTERRUPT_MESSAGE = '[Request interrupted by user]';
-export const INTERRUPT_MESSAGE_FOR_TOOL_USE = '[Request interrupted by user for tool use]';
-export const CANCEL_MESSAGE = "The user doesn't want to take this action right now. STOP what you are doing and wait for the user to tell you how to proceed.";
-export const REJECT_MESSAGE = "The user doesn't want to proceed with this tool use. The tool use was rejected (eg. if it was a file edit, the new_string was NOT written to the file). STOP what you are doing and wait for the user to tell you how to proceed.";
+import { createHash, randomUUID } from "crypto";
+import { last, memoize } from "lodash-es";
+import { NO_CONTENT_MESSAGE } from "@services/llmConstants";
+export const INTERRUPT_MESSAGE = "[Request interrupted by user]";
+export const INTERRUPT_MESSAGE_FOR_TOOL_USE =
+  "[Request interrupted by user for tool use]";
+export const CANCEL_MESSAGE =
+  "The user doesn't want to take this action right now. STOP what you are doing and wait for the user to tell you how to proceed.";
+export const REJECT_MESSAGE =
+  "The user doesn't want to proceed with this tool use. The tool use was rejected (eg. if it was a file edit, the new_string was NOT written to the file). STOP what you are doing and wait for the user to tell you how to proceed.";
 export const REJECT_MESSAGE_WITH_FEEDBACK_PREFIX = `The user doesn't want to proceed with this tool use. The tool use was rejected (eg. if it was a file edit, the new_string was NOT written to the file). To tell you how to proceed, the user said:\n`;
 export const REJECTED_PLAN_PREFIX = `The agent proposed a plan that was rejected by the user. The user chose to stay in plan mode rather than proceed with implementation.\n\nRejected plan:\n`;
-export const NO_RESPONSE_REQUESTED = 'No response requested.';
+export const NO_RESPONSE_REQUESTED = "No response requested.";
 export const SYNTHETIC_ASSISTANT_MESSAGES = new Set([
-    INTERRUPT_MESSAGE,
-    INTERRUPT_MESSAGE_FOR_TOOL_USE,
-    CANCEL_MESSAGE,
-    REJECT_MESSAGE,
-    NO_RESPONSE_REQUESTED,
+  INTERRUPT_MESSAGE,
+  INTERRUPT_MESSAGE_FOR_TOOL_USE,
+  CANCEL_MESSAGE,
+  REJECT_MESSAGE,
+  NO_RESPONSE_REQUESTED,
 ]);
 function stableUuidFromSeed(seed) {
-    const hex = createHash('sha256').update(seed).digest('hex').slice(0, 32);
-    return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20, 32)}`;
+  const hex = createHash("sha256").update(seed).digest("hex").slice(0, 32);
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20, 32)}`;
 }
 function baseCreateAssistantMessage(content, extra) {
-    return {
-        type: 'assistant',
-        costUSD: 0,
-        durationMs: 0,
-        uuid: randomUUID(),
-        message: {
-            id: randomUUID(),
-            model: '<synthetic>',
-            role: 'assistant',
-            stop_reason: 'stop_sequence',
-            stop_sequence: '',
-            type: 'message',
-            usage: {
-                input_tokens: 0,
-                output_tokens: 0,
-                cache_creation_input_tokens: 0,
-                cache_read_input_tokens: 0,
-            },
-            content,
-        },
-        ...extra,
-    };
+  return {
+    type: "assistant",
+    costUSD: 0,
+    durationMs: 0,
+    uuid: randomUUID(),
+    message: {
+      id: randomUUID(),
+      model: "<synthetic>",
+      role: "assistant",
+      stop_reason: "stop_sequence",
+      stop_sequence: "",
+      type: "message",
+      usage: {
+        input_tokens: 0,
+        output_tokens: 0,
+        cache_creation_input_tokens: 0,
+        cache_read_input_tokens: 0,
+      },
+      content,
+    },
+    ...extra,
+  };
 }
 export function createAssistantMessage(content) {
-    return baseCreateAssistantMessage([
-        {
-            type: 'text',
-            text: content === '' ? NO_CONTENT_MESSAGE : content,
-            citations: [],
-        },
-    ]);
+  return baseCreateAssistantMessage([
+    {
+      type: "text",
+      text: content === "" ? NO_CONTENT_MESSAGE : content,
+      citations: [],
+    },
+  ]);
 }
 export function createAssistantAPIErrorMessage(content) {
-    return baseCreateAssistantMessage([
-        {
-            type: 'text',
-            text: content === '' ? NO_CONTENT_MESSAGE : content,
-            citations: [],
-        },
-    ], { isApiErrorMessage: true });
+  return baseCreateAssistantMessage(
+    [
+      {
+        type: "text",
+        text: content === "" ? NO_CONTENT_MESSAGE : content,
+        citations: [],
+      },
+    ],
+    { isApiErrorMessage: true },
+  );
 }
 export function createUserMessage(content, toolUseResult) {
-    const m = {
-        type: 'user',
-        message: {
-            role: 'user',
-            content,
-        },
-        uuid: randomUUID(),
-        toolUseResult,
-    };
-    return m;
+  const m = {
+    type: "user",
+    message: {
+      role: "user",
+      content,
+    },
+    uuid: randomUUID(),
+    toolUseResult,
+  };
+  return m;
 }
-export function createProgressMessage(toolUseID, siblingToolUseIDs, content, normalizedMessages, tools) {
-    return {
-        type: 'progress',
-        content,
-        normalizedMessages,
-        siblingToolUseIDs,
-        tools,
-        toolUseID,
-        uuid: randomUUID(),
-    };
+export function createProgressMessage(
+  toolUseID,
+  siblingToolUseIDs,
+  content,
+  normalizedMessages,
+  tools,
+) {
+  return {
+    type: "progress",
+    content,
+    normalizedMessages,
+    siblingToolUseIDs,
+    tools,
+    toolUseID,
+    uuid: randomUUID(),
+  };
 }
 export function createToolResultStopMessage(toolUseID) {
-    return {
-        type: 'tool_result',
-        content: CANCEL_MESSAGE,
-        is_error: true,
-        tool_use_id: toolUseID,
-    };
+  return {
+    type: "tool_result",
+    content: CANCEL_MESSAGE,
+    is_error: true,
+    tool_use_id: toolUseID,
+  };
 }
 export function extractTagFromMessage(message, tagName) {
-    if (message.type === 'progress') {
-        return null;
-    }
-    if (typeof message.message.content !== 'string') {
-        return null;
-    }
-    return extractTag(message.message.content, tagName);
+  if (message.type === "progress") {
+    return null;
+  }
+  if (typeof message.message.content !== "string") {
+    return null;
+  }
+  return extractTag(message.message.content, tagName);
 }
 export function extractTag(html, tagName) {
-    if (!html.trim() || !tagName.trim()) {
-        return null;
-    }
-    const escapedTag = tagName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    const pattern = new RegExp(`<${escapedTag}(?:\\s+[^>]*)?>` + '([\\s\\S]*?)' + `<\\/${escapedTag}>`, 'gi');
-    let match;
-    let depth = 0;
-    let lastIndex = 0;
-    const openingTag = new RegExp(`<${escapedTag}(?:\\s+[^>]*?)?>`, 'gi');
-    const closingTag = new RegExp(`<\\/${escapedTag}>`, 'gi');
-    while ((match = pattern.exec(html)) !== null) {
-        const content = match[1];
-        const beforeMatch = html.slice(lastIndex, match.index);
-        depth = 0;
-        openingTag.lastIndex = 0;
-        while (openingTag.exec(beforeMatch) !== null) {
-            depth++;
-        }
-        closingTag.lastIndex = 0;
-        while (closingTag.exec(beforeMatch) !== null) {
-            depth--;
-        }
-        if (depth === 0 && content) {
-            return content;
-        }
-        lastIndex = match.index + match[0].length;
-    }
+  if (!html.trim() || !tagName.trim()) {
     return null;
+  }
+  const escapedTag = tagName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const pattern = new RegExp(
+    `<${escapedTag}(?:\\s+[^>]*)?>` + "([\\s\\S]*?)" + `<\\/${escapedTag}>`,
+    "gi",
+  );
+  let match;
+  let depth = 0;
+  let lastIndex = 0;
+  const openingTag = new RegExp(`<${escapedTag}(?:\\s+[^>]*?)?>`, "gi");
+  const closingTag = new RegExp(`<\\/${escapedTag}>`, "gi");
+  while ((match = pattern.exec(html)) !== null) {
+    const content = match[1];
+    const beforeMatch = html.slice(lastIndex, match.index);
+    depth = 0;
+    openingTag.lastIndex = 0;
+    while (openingTag.exec(beforeMatch) !== null) {
+      depth++;
+    }
+    closingTag.lastIndex = 0;
+    while (closingTag.exec(beforeMatch) !== null) {
+      depth--;
+    }
+    if (depth === 0 && content) {
+      return content;
+    }
+    lastIndex = match.index + match[0].length;
+  }
+  return null;
 }
 export function isNotEmptyMessage(message) {
-    if (message.type === 'progress') {
-        return true;
-    }
-    if (typeof message.message.content === 'string') {
-        return message.message.content.trim().length > 0;
-    }
-    if (message.message.content.length === 0) {
-        return false;
-    }
-    if (message.message.content.length > 1) {
-        return true;
-    }
-    if (message.message.content[0].type !== 'text') {
-        return true;
-    }
-    return (message.message.content[0].text.trim().length > 0 &&
-        message.message.content[0].text !== NO_CONTENT_MESSAGE &&
-        message.message.content[0].text !== INTERRUPT_MESSAGE_FOR_TOOL_USE);
+  if (message.type === "progress") {
+    return true;
+  }
+  if (typeof message.message.content === "string") {
+    return message.message.content.trim().length > 0;
+  }
+  if (message.message.content.length === 0) {
+    return false;
+  }
+  if (message.message.content.length > 1) {
+    return true;
+  }
+  if (message.message.content[0].type !== "text") {
+    return true;
+  }
+  return (
+    message.message.content[0].text.trim().length > 0 &&
+    message.message.content[0].text !== NO_CONTENT_MESSAGE &&
+    message.message.content[0].text !== INTERRUPT_MESSAGE_FOR_TOOL_USE
+  );
 }
 export function normalizeMessages(messages) {
-    return messages.flatMap(message => {
-        if (message.type === 'progress') {
-            return [message];
-        }
-        if (typeof message.message.content === 'string') {
-            return [message];
-        }
-        const contentBlocks = message.message.content.filter(block => !(block.type === 'thinking' &&
-            (typeof block.thinking !== 'string' ||
-                block.thinking.trim().length === 0)));
-        return contentBlocks.map((block, blockIndex) => {
-            switch (message.type) {
-                case 'assistant':
-                    const baseSeed = String(message.uuid ??
-                        message.message?.id ??
-                        randomUUID());
-                    return {
-                        type: 'assistant',
-                        uuid: stableUuidFromSeed(`${baseSeed}:${blockIndex}`),
-                        message: {
-                            ...message.message,
-                            content: [block],
-                        },
-                        costUSD: message.costUSD / contentBlocks.length,
-                        durationMs: message.durationMs,
-                    };
-                case 'user':
-                    return message;
-            }
-        });
+  return messages.flatMap((message) => {
+    if (message.type === "progress") {
+      return [message];
+    }
+    if (typeof message.message.content === "string") {
+      return [message];
+    }
+    const contentBlocks = message.message.content.filter(
+      (block) =>
+        !(
+          block.type === "thinking" &&
+          (typeof block.thinking !== "string" ||
+            block.thinking.trim().length === 0)
+        ),
+    );
+    return contentBlocks.map((block, blockIndex) => {
+      switch (message.type) {
+        case "assistant":
+          const baseSeed = String(
+            message.uuid ?? message.message?.id ?? randomUUID(),
+          );
+          return {
+            type: "assistant",
+            uuid: stableUuidFromSeed(`${baseSeed}:${blockIndex}`),
+            message: {
+              ...message.message,
+              content: [block],
+            },
+            costUSD: message.costUSD / contentBlocks.length,
+            durationMs: message.durationMs,
+          };
+        case "user":
+          return message;
+      }
     });
+  });
 }
 function isToolUseLikeBlockParam(block) {
-    return (block &&
-        typeof block === 'object' &&
-        (block.type === 'tool_use' ||
-            block.type === 'server_tool_use' ||
-            block.type === 'mcp_tool_use') &&
-        typeof block.id === 'string');
+  return (
+    block &&
+    typeof block === "object" &&
+    (block.type === "tool_use" ||
+      block.type === "server_tool_use" ||
+      block.type === "mcp_tool_use") &&
+    typeof block.id === "string"
+  );
 }
 function isToolUseRequestMessage(message) {
-    return (message.type === 'assistant' &&
-        'costUSD' in message &&
-        message.message.content.some(isToolUseLikeBlockParam));
+  return (
+    message.type === "assistant" &&
+    "costUSD" in message &&
+    message.message.content.some(isToolUseLikeBlockParam)
+  );
 }
 export function reorderMessages(messages) {
-    const ms = [];
-    const toolUseMessages = [];
-    for (const message of messages) {
-        if (isToolUseRequestMessage(message)) {
-            toolUseMessages.push(message);
-        }
-        if (message.type === 'progress') {
-            const existingProgressMessage = ms.find(_ => _.type === 'progress' && _.toolUseID === message.toolUseID);
-            if (existingProgressMessage) {
-                ms[ms.indexOf(existingProgressMessage)] = message;
-                continue;
-            }
-            const toolUseMessage = toolUseMessages.find(_ => _.message.content[0]?.id === message.toolUseID);
-            if (toolUseMessage) {
-                ms.splice(ms.indexOf(toolUseMessage) + 1, 0, message);
-                continue;
-            }
-        }
-        if (message.type === 'user' &&
-            Array.isArray(message.message.content) &&
-            message.message.content[0]?.type === 'tool_result') {
-            const toolUseID = message.message.content[0]
-                ?.tool_use_id;
-            const lastProgressMessage = ms.find(_ => _.type === 'progress' && _.toolUseID === toolUseID);
-            if (lastProgressMessage) {
-                ms.splice(ms.indexOf(lastProgressMessage) + 1, 0, message);
-                continue;
-            }
-            const toolUseMessage = toolUseMessages.find(_ => _.message.content[0]?.id === toolUseID);
-            if (toolUseMessage) {
-                ms.splice(ms.indexOf(toolUseMessage) + 1, 0, message);
-                continue;
-            }
-        }
-        else {
-            ms.push(message);
-        }
+  const ms = [];
+  const toolUseMessages = [];
+  for (const message of messages) {
+    if (isToolUseRequestMessage(message)) {
+      toolUseMessages.push(message);
     }
-    return ms;
+    if (message.type === "progress") {
+      const existingProgressMessage = ms.find(
+        (_) => _.type === "progress" && _.toolUseID === message.toolUseID,
+      );
+      if (existingProgressMessage) {
+        ms[ms.indexOf(existingProgressMessage)] = message;
+        continue;
+      }
+      const toolUseMessage = toolUseMessages.find(
+        (_) => _.message.content[0]?.id === message.toolUseID,
+      );
+      if (toolUseMessage) {
+        ms.splice(ms.indexOf(toolUseMessage) + 1, 0, message);
+        continue;
+      }
+    }
+    if (
+      message.type === "user" &&
+      Array.isArray(message.message.content) &&
+      message.message.content[0]?.type === "tool_result"
+    ) {
+      const toolUseID = message.message.content[0]?.tool_use_id;
+      const lastProgressMessage = ms.find(
+        (_) => _.type === "progress" && _.toolUseID === toolUseID,
+      );
+      if (lastProgressMessage) {
+        ms.splice(ms.indexOf(lastProgressMessage) + 1, 0, message);
+        continue;
+      }
+      const toolUseMessage = toolUseMessages.find(
+        (_) => _.message.content[0]?.id === toolUseID,
+      );
+      if (toolUseMessage) {
+        ms.splice(ms.indexOf(toolUseMessage) + 1, 0, message);
+        continue;
+      }
+    } else {
+      ms.push(message);
+    }
+  }
+  return ms;
 }
-const getToolResultIDs = memoize((normalizedMessages) => Object.fromEntries(normalizedMessages.flatMap(_ => _.type === 'user' && _.message.content[0]?.type === 'tool_result'
-    ? [
-        [
-            _.message.content[0].tool_use_id,
-            _.message.content[0].is_error ?? false,
-        ],
-    ]
-    : [])));
+const getToolResultIDs = memoize((normalizedMessages) =>
+  Object.fromEntries(
+    normalizedMessages.flatMap((_) =>
+      _.type === "user" && _.message.content[0]?.type === "tool_result"
+        ? [
+            [
+              _.message.content[0].tool_use_id,
+              _.message.content[0].is_error ?? false,
+            ],
+          ]
+        : [],
+    ),
+  ),
+);
 export function getUnresolvedToolUseIDs(normalizedMessages) {
-    const toolResults = getToolResultIDs(normalizedMessages);
-    return new Set(normalizedMessages
-        .filter((_) => _.type === 'assistant' &&
-        Array.isArray(_.message.content) &&
-        isToolUseLikeBlockParam(_.message.content[0]) &&
-        !(_.message.content[0].id in toolResults))
-        .map(_ => _.message.content[0].id));
+  const toolResults = getToolResultIDs(normalizedMessages);
+  return new Set(
+    normalizedMessages
+      .filter(
+        (_) =>
+          _.type === "assistant" &&
+          Array.isArray(_.message.content) &&
+          isToolUseLikeBlockParam(_.message.content[0]) &&
+          !(_.message.content[0].id in toolResults),
+      )
+      .map((_) => _.message.content[0].id),
+  );
 }
 export function getInProgressToolUseIDs(normalizedMessages) {
-    const unresolvedToolUseIDs = getUnresolvedToolUseIDs(normalizedMessages);
-    function isQueuedWaitingProgressMessage(message) {
-        if (message.type !== 'progress')
-            return false;
-        const firstBlock = message.content.message.content[0];
-        if (!firstBlock || firstBlock.type !== 'text')
-            return false;
-        const rawText = String(firstBlock.text ?? '');
-        const text = rawText.startsWith('<tool-progress>')
-            ? (extractTag(rawText, 'tool-progress') ?? rawText)
-            : rawText;
-        return text.trim() === 'Waiting…';
-    }
-    const toolUseIDsThatHaveProgressMessages = new Set(normalizedMessages
-        .filter((_) => _.type === 'progress' && !isQueuedWaitingProgressMessage(_))
-        .map(_ => _.toolUseID));
-    return new Set(normalizedMessages.filter(_ => {
-        if (_.type !== 'assistant') {
-            return false;
+  const unresolvedToolUseIDs = getUnresolvedToolUseIDs(normalizedMessages);
+  function isQueuedWaitingProgressMessage(message) {
+    if (message.type !== "progress") return false;
+    const firstBlock = message.content.message.content[0];
+    if (!firstBlock || firstBlock.type !== "text") return false;
+    const rawText = String(firstBlock.text ?? "");
+    const text = rawText.startsWith("<tool-progress>")
+      ? (extractTag(rawText, "tool-progress") ?? rawText)
+      : rawText;
+    return text.trim() === "Waiting…";
+  }
+  const toolUseIDsThatHaveProgressMessages = new Set(
+    normalizedMessages
+      .filter(
+        (_) => _.type === "progress" && !isQueuedWaitingProgressMessage(_),
+      )
+      .map((_) => _.toolUseID),
+  );
+  return new Set(
+    normalizedMessages
+      .filter((_) => {
+        if (_.type !== "assistant") {
+          return false;
         }
         const firstBlock = _.message.content[0];
-        if (!isToolUseLikeBlockParam(firstBlock))
-            return false;
+        if (!isToolUseLikeBlockParam(firstBlock)) return false;
         const toolUseID = firstBlock.id;
         if (toolUseID === unresolvedToolUseIDs.values().next().value) {
-            return true;
+          return true;
         }
-        if (toolUseIDsThatHaveProgressMessages.has(toolUseID) &&
-            unresolvedToolUseIDs.has(toolUseID)) {
-            return true;
+        if (
+          toolUseIDsThatHaveProgressMessages.has(toolUseID) &&
+          unresolvedToolUseIDs.has(toolUseID)
+        ) {
+          return true;
         }
         return false;
-    }).map(_ => _.message.content[0].id));
+      })
+      .map((_) => _.message.content[0].id),
+  );
 }
 export function getErroredToolUseMessages(normalizedMessages) {
-    const toolResults = getToolResultIDs(normalizedMessages);
-    return normalizedMessages.filter(_ => _.type === 'assistant' &&
-        Array.isArray(_.message.content) &&
-        isToolUseLikeBlockParam(_.message.content[0]) &&
-        _.message.content[0].id in toolResults &&
-        toolResults[_.message.content[0].id]);
+  const toolResults = getToolResultIDs(normalizedMessages);
+  return normalizedMessages.filter(
+    (_) =>
+      _.type === "assistant" &&
+      Array.isArray(_.message.content) &&
+      isToolUseLikeBlockParam(_.message.content[0]) &&
+      _.message.content[0].id in toolResults &&
+      toolResults[_.message.content[0].id],
+  );
 }
 export function normalizeMessagesForAPI(messages) {
-    function isSyntheticApiErrorMessage(message) {
-        return (message.type === 'assistant' &&
-            message.isApiErrorMessage === true &&
-            message.message.model === '<synthetic>');
+  function isSyntheticApiErrorMessage(message) {
+    return (
+      message.type === "assistant" &&
+      message.isApiErrorMessage === true &&
+      message.message.model === "<synthetic>"
+    );
+  }
+  function normalizeUserContent(content) {
+    if (typeof content === "string") {
+      return [{ type: "text", text: content }];
     }
-    function normalizeUserContent(content) {
-        if (typeof content === 'string') {
-            return [{ type: 'text', text: content }];
+    return content;
+  }
+  function toolResultsFirst(content) {
+    const toolResults = [];
+    const rest = [];
+    for (const block of content) {
+      if (block.type === "tool_result") {
+        toolResults.push(block);
+      } else {
+        rest.push(block);
+      }
+    }
+    return [...toolResults, ...rest];
+  }
+  function mergeUserMessages(base, next) {
+    const baseBlocks = normalizeUserContent(base.message.content);
+    const nextBlocks = normalizeUserContent(next.message.content);
+    return {
+      ...base,
+      message: {
+        ...base.message,
+        content: toolResultsFirst([...baseBlocks, ...nextBlocks]),
+      },
+    };
+  }
+  function isUserToolResultMessage(message) {
+    if (message.type !== "user") return false;
+    if (!Array.isArray(message.message.content)) return false;
+    return message.message.content.some(
+      (block) => block.type === "tool_result",
+    );
+  }
+  const result = [];
+  for (const message of messages) {
+    if (message.type === "progress") continue;
+    if (isSyntheticApiErrorMessage(message)) continue;
+    switch (message.type) {
+      case "user": {
+        const prev = last(result);
+        if (prev?.type === "user") {
+          result[result.indexOf(prev)] = mergeUserMessages(prev, message);
+        } else {
+          result.push(message);
         }
-        return content;
-    }
-    function toolResultsFirst(content) {
-        const toolResults = [];
-        const rest = [];
-        for (const block of content) {
-            if (block.type === 'tool_result') {
-                toolResults.push(block);
+        break;
+      }
+      case "assistant": {
+        let merged = false;
+        for (let i = result.length - 1; i >= 0; i--) {
+          const prev = result[i];
+          if (prev.type !== "assistant" && !isUserToolResultMessage(prev)) {
+            break;
+          }
+          if (prev.type === "assistant") {
+            if (prev.message.id === message.message.id) {
+              result[i] = {
+                ...prev,
+                message: {
+                  ...prev.message,
+                  content: [
+                    ...(Array.isArray(prev.message.content)
+                      ? prev.message.content
+                      : []),
+                    ...(Array.isArray(message.message.content)
+                      ? message.message.content
+                      : []),
+                  ],
+                },
+              };
+              merged = true;
             }
-            else {
-                rest.push(block);
-            }
+            break;
+          }
         }
-        return [...toolResults, ...rest];
-    }
-    function mergeUserMessages(base, next) {
-        const baseBlocks = normalizeUserContent(base.message.content);
-        const nextBlocks = normalizeUserContent(next.message.content);
-        return {
-            ...base,
-            message: {
-                ...base.message,
-                content: toolResultsFirst([...baseBlocks, ...nextBlocks]),
-            },
-        };
-    }
-    function isUserToolResultMessage(message) {
-        if (message.type !== 'user')
-            return false;
-        if (!Array.isArray(message.message.content))
-            return false;
-        return message.message.content.some(block => block.type === 'tool_result');
-    }
-    const result = [];
-    for (const message of messages) {
-        if (message.type === 'progress')
-            continue;
-        if (isSyntheticApiErrorMessage(message))
-            continue;
-        switch (message.type) {
-            case 'user': {
-                const prev = last(result);
-                if (prev?.type === 'user') {
-                    result[result.indexOf(prev)] = mergeUserMessages(prev, message);
-                }
-                else {
-                    result.push(message);
-                }
-                break;
-            }
-            case 'assistant': {
-                let merged = false;
-                for (let i = result.length - 1; i >= 0; i--) {
-                    const prev = result[i];
-                    if (prev.type !== 'assistant' && !isUserToolResultMessage(prev)) {
-                        break;
-                    }
-                    if (prev.type === 'assistant') {
-                        if (prev.message.id === message.message.id) {
-                            result[i] = {
-                                ...prev,
-                                message: {
-                                    ...prev.message,
-                                    content: [
-                                        ...(Array.isArray(prev.message.content)
-                                            ? prev.message.content
-                                            : []),
-                                        ...(Array.isArray(message.message.content)
-                                            ? message.message.content
-                                            : []),
-                                    ],
-                                },
-                            };
-                            merged = true;
-                        }
-                        break;
-                    }
-                }
-                if (!merged) {
-                    result.push(message);
-                }
-                break;
-            }
+        if (!merged) {
+          result.push(message);
         }
+        break;
+      }
     }
-    return result;
+  }
+  return result;
 }
 export function normalizeContentFromAPI(content) {
-    const filteredContent = content.filter(_ => _.type !== 'text' || _.text.trim().length > 0);
-    if (filteredContent.length === 0) {
-        return [{ type: 'text', text: NO_CONTENT_MESSAGE, citations: [] }];
-    }
-    return filteredContent;
+  const filteredContent = content.filter(
+    (_) => _.type !== "text" || _.text.trim().length > 0,
+  );
+  if (filteredContent.length === 0) {
+    return [{ type: "text", text: NO_CONTENT_MESSAGE, citations: [] }];
+  }
+  return filteredContent;
 }
 export function isEmptyMessageText(text) {
-    return (stripSystemMessages(text).trim() === '' ||
-        text.trim() === NO_CONTENT_MESSAGE);
+  return (
+    stripSystemMessages(text).trim() === "" ||
+    text.trim() === NO_CONTENT_MESSAGE
+  );
 }
 /**
  * Filter messages to get user text messages for the undo menu (2xESC).
@@ -413,46 +470,44 @@ export function isEmptyMessageText(text) {
  * - User messages that only contain tool_result blocks
  */
 export function filterUserTextMessagesForUndo(messages) {
-    return messages.filter((msg) => {
-        if (msg.type !== 'user')
-            return false;
-        if (!Array.isArray(msg.message.content))
-            return true;
-        return !msg.message.content.every(block => block.type === 'tool_result');
-    });
+  return messages.filter((msg) => {
+    if (msg.type !== "user") return false;
+    if (!Array.isArray(msg.message.content)) return true;
+    return !msg.message.content.every((block) => block.type === "tool_result");
+  });
 }
 const STRIPPED_TAGS = [
-    'commit_analysis',
-    'context',
-    'function_analysis',
-    'pr_analysis',
+  "commit_analysis",
+  "context",
+  "function_analysis",
+  "pr_analysis",
 ];
 export function stripSystemMessages(content) {
-    const regex = new RegExp(`<(${STRIPPED_TAGS.join('|')})>.*?</\\1>\n?`, 'gs');
-    return content.replace(regex, '').trim();
+  const regex = new RegExp(`<(${STRIPPED_TAGS.join("|")})>.*?</\\1>\n?`, "gs");
+  return content.replace(regex, "").trim();
 }
 export function getToolUseID(message) {
-    switch (message.type) {
-        case 'assistant':
-            return isToolUseLikeBlockParam(message.message.content[0])
-                ? message.message.content[0].id
-                : null;
-        case 'user':
-            if (message.message.content[0]?.type !== 'tool_result') {
-                return null;
-            }
-            return message.message.content[0].tool_use_id;
-        case 'progress':
-            return message.toolUseID;
-    }
+  switch (message.type) {
+    case "assistant":
+      return isToolUseLikeBlockParam(message.message.content[0])
+        ? message.message.content[0].id
+        : null;
+    case "user":
+      if (message.message.content[0]?.type !== "tool_result") {
+        return null;
+      }
+      return message.message.content[0].tool_use_id;
+    case "progress":
+      return message.toolUseID;
+  }
 }
 export function getLastAssistantMessageId(messages) {
-    for (let i = messages.length - 1; i >= 0; i--) {
-        const message = messages[i];
-        if (message && message.type === 'assistant') {
-            return message.message.id;
-        }
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const message = messages[i];
+    if (message && message.type === "assistant") {
+      return message.message.id;
     }
-    return undefined;
+  }
+  return undefined;
 }
 //# sourceMappingURL=core.js.map

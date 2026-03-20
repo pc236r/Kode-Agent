@@ -1,1 +1,1 @@
-export { ModelSelector } from './model-selector/ModelSelector'
+export { ModelSelector } from "./model-selector/ModelSelector";

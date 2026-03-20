@@ -1,77 +1,77 @@
-import { Box, Text } from 'ink'
-import React from 'react'
-import { z } from 'zod'
-import { Cost } from '@components/Cost'
-import { FallbackToolUseRejectedMessage } from '@components/FallbackToolUseRejectedMessage'
-import type { Tool, ToolUseContext } from '@tool'
-import { getClients } from '@services/mcpClient'
-import { ListResourcesResultSchema } from '@modelcontextprotocol/sdk/types.js'
-import { DESCRIPTION, PROMPT, TOOL_NAME } from './prompt'
+import { Box, Text } from "ink";
+import React from "react";
+import { z } from "zod";
+import { Cost } from "@components/Cost";
+import { FallbackToolUseRejectedMessage } from "@components/FallbackToolUseRejectedMessage";
+import type { Tool, ToolUseContext } from "@tool";
+import { getClients } from "@services/mcpClient";
+import { ListResourcesResultSchema } from "@modelcontextprotocol/sdk/types.js";
+import { DESCRIPTION, PROMPT, TOOL_NAME } from "./prompt";
 
 const inputSchema = z.strictObject({
   server: z
     .string()
     .optional()
-    .describe('Optional server name to filter resources by'),
-})
+    .describe("Optional server name to filter resources by"),
+});
 
-type Input = z.infer<typeof inputSchema>
+type Input = z.infer<typeof inputSchema>;
 
 type OutputItem = {
-  uri: string
-  name: string
-  mimeType?: string
-  description?: string
-  server: string
-}
+  uri: string;
+  name: string;
+  mimeType?: string;
+  description?: string;
+  server: string;
+};
 
-type Output = OutputItem[]
+type Output = OutputItem[];
 
 export const ListMcpResourcesTool = {
   name: TOOL_NAME,
   async description() {
-    return DESCRIPTION
+    return DESCRIPTION;
   },
   async prompt() {
-    return PROMPT
+    return PROMPT;
   },
   inputSchema,
   userFacingName() {
-    return 'listMcpResources'
+    return "listMcpResources";
   },
   async isEnabled() {
-    return true
+    return true;
   },
   isReadOnly() {
-    return true
+    return true;
   },
   isConcurrencySafe() {
-    return true
+    return true;
   },
   needsPermissions() {
-    return false
+    return false;
   },
   async validateInput({ server }: Input, context?: ToolUseContext) {
-    if (!server) return { result: true }
+    if (!server) return { result: true };
     const clients =
-      (context?.options?.mcpClients as any[]) ?? (await getClients())
-    const found = clients.some(c => c.name === server)
+      (context?.options?.mcpClients as any[]) ?? (await getClients());
+    const found = clients.some((c) => c.name === server);
     if (!found) {
       return {
         result: false,
-        message: `Server "${server}" not found. Available servers: ${clients.map(c => c.name).join(', ')}`,
+        message: `Server "${server}" not found. Available servers: ${clients.map((c) => c.name).join(", ")}`,
         errorCode: 1,
-      }
+      };
     }
-    return { result: true }
+    return { result: true };
   },
   renderToolUseMessage({ server }: Input) {
     return server
       ? `List MCP resources from server "${server}"`
-      : 'List all MCP resources'
+      : "List all MCP resources";
   },
   renderToolUseRejectedMessage() {
-    return <FallbackToolUseRejectedMessage />
+    return <FallbackToolUseRejectedMessage />;
   },
   renderToolResultMessage(output: Output) {
     return (
@@ -83,53 +83,55 @@ export const ListMcpResourcesTool = {
         </Box>
         <Cost costUSD={0} durationMs={0} debug={false} />
       </Box>
-    )
+    );
   },
   renderResultForAssistant(output: Output) {
-    return JSON.stringify(output)
+    return JSON.stringify(output);
   },
   async *call({ server }: Input, context: ToolUseContext) {
     const clients =
-      (context.options?.mcpClients as any[]) ?? (await getClients())
-    const selected = server ? clients.filter(c => c.name === server) : clients
+      (context.options?.mcpClients as any[]) ?? (await getClients());
+    const selected = server
+      ? clients.filter((c) => c.name === server)
+      : clients;
     if (server && selected.length === 0) {
       throw new Error(
-        `Server "${server}" not found. Available servers: ${clients.map(c => c.name).join(', ')}`,
-      )
+        `Server "${server}" not found. Available servers: ${clients.map((c) => c.name).join(", ")}`,
+      );
     }
 
-    const resources: OutputItem[] = []
+    const resources: OutputItem[] = [];
     for (const wrapped of selected) {
-      if (wrapped.type !== 'connected') continue
+      if (wrapped.type !== "connected") continue;
       try {
         let capabilities: Record<string, unknown> | null =
-          (wrapped as any).capabilities ?? null
+          (wrapped as any).capabilities ?? null;
         if (!capabilities) {
           try {
-            capabilities = wrapped.client.getServerCapabilities() as any
+            capabilities = wrapped.client.getServerCapabilities() as any;
           } catch {
-            capabilities = null
+            capabilities = null;
           }
         }
-        if (!(capabilities as any)?.resources) continue
+        if (!(capabilities as any)?.resources) continue;
         const result = await wrapped.client.request(
-          { method: 'resources/list' },
+          { method: "resources/list" },
           ListResourcesResultSchema,
-        )
-        if (!result.resources) continue
+        );
+        if (!result.resources) continue;
         resources.push(
-          ...result.resources.map(r => ({
+          ...result.resources.map((r) => ({
             ...r,
             server: wrapped.name,
           })),
-        )
+        );
       } catch {}
     }
 
     yield {
-      type: 'result',
+      type: "result",
       data: resources,
       resultForAssistant: this.renderResultForAssistant(resources),
-    }
+    };
   },
-} satisfies Tool<typeof inputSchema, Output>
+} satisfies Tool<typeof inputSchema, Output>;

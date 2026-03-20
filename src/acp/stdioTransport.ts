@@ -1,14 +1,14 @@
-import readline from 'node:readline'
+import readline from "node:readline";
 
-import { JsonRpcPeer } from './jsonrpc'
+import { JsonRpcPeer } from "./jsonrpc";
 
 type TransportOptions = {
-  writeLine: (line: string) => void
-}
+  writeLine: (line: string) => void;
+};
 
 export class StdioTransport {
-  private rl: readline.Interface | null = null
-  private readonly pending = new Set<Promise<void>>()
+  private rl: readline.Interface | null = null;
+  private readonly pending = new Set<Promise<void>>();
 
   constructor(
     private readonly peer: JsonRpcPeer,
@@ -16,48 +16,48 @@ export class StdioTransport {
   ) {}
 
   start(): void {
-    if (this.rl) return
+    if (this.rl) return;
 
-    this.peer.setSend(this.opts.writeLine)
+    this.peer.setSend(this.opts.writeLine);
 
     this.rl = readline.createInterface({
       input: process.stdin,
       crlfDelay: Infinity,
-    })
+    });
 
-    this.rl.on('line', line => {
-      const trimmed = line.trim()
-      if (!trimmed) return
+    this.rl.on("line", (line) => {
+      const trimmed = line.trim();
+      if (!trimmed) return;
 
       try {
-        const payload = JSON.parse(trimmed)
-        const p = this.peer.handleIncoming(payload).catch(() => {})
-        this.pending.add(p)
-        void p.finally(() => this.pending.delete(p))
+        const payload = JSON.parse(trimmed);
+        const p = this.peer.handleIncoming(payload).catch(() => {});
+        this.pending.add(p);
+        void p.finally(() => this.pending.delete(p));
       } catch (err) {
         this.opts.writeLine(
           JSON.stringify({
-            jsonrpc: '2.0',
+            jsonrpc: "2.0",
             id: null,
-            error: { code: -32700, message: 'Parse error' },
+            error: { code: -32700, message: "Parse error" },
           }),
-        )
+        );
       }
-    })
+    });
 
-    this.rl.on('close', () => {
+    this.rl.on("close", () => {
       void (async () => {
-        const pending = Array.from(this.pending)
+        const pending = Array.from(this.pending);
         if (pending.length > 0) {
-          await Promise.allSettled(pending)
+          await Promise.allSettled(pending);
         }
-        process.exit(0)
-      })()
-    })
+        process.exit(0);
+      })();
+    });
   }
 
   stop(): void {
-    this.rl?.close()
-    this.rl = null
+    this.rl?.close();
+    this.rl = null;
   }
 }

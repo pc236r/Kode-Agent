@@ -1,5 +1,5 @@
-declare module 'sharp' {
-  function sharp(input?: any): any
+declare module "sharp" {
+  function sharp(input?: any): any;
   namespace sharp {}
-  export default sharp
+  export default sharp;
 }

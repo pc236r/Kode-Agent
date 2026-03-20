@@ -1,30 +1,30 @@
 export type SessionPlugin = {
-  name: string
-  rootDir: string
-  manifestPath: string
-  manifest: unknown
-  commandsDirs: string[]
-  skillsDirs: string[]
-  agentsDirs: string[]
-  hooksFiles: string[]
-  outputStylesDirs: string[]
-  mcpConfigFiles: string[]
-}
+  name: string;
+  rootDir: string;
+  manifestPath: string;
+  manifest: unknown;
+  commandsDirs: string[];
+  skillsDirs: string[];
+  agentsDirs: string[];
+  hooksFiles: string[];
+  outputStylesDirs: string[];
+  mcpConfigFiles: string[];
+};
 
-let sessionPlugins: SessionPlugin[] = []
+let sessionPlugins: SessionPlugin[] = [];
 
 export function setSessionPlugins(next: SessionPlugin[]): void {
-  sessionPlugins = next
+  sessionPlugins = next;
 }
 
 export function getSessionPlugins(): SessionPlugin[] {
-  return sessionPlugins
+  return sessionPlugins;
 }
 
 export function clearSessionPlugins(): void {
-  sessionPlugins = []
+  sessionPlugins = [];
 }
 
 export function __resetSessionPluginsForTests(): void {
-  sessionPlugins = []
+  sessionPlugins = [];
 }

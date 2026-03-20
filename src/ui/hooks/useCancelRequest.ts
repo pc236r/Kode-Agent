@@ -1,7 +1,7 @@
-import { useInput } from 'ink'
-import { ToolUseConfirm } from '@components/permissions/PermissionRequest'
-import { BinaryFeedbackContext } from '@screens/REPL'
-import type { SetToolJSXFn } from '@tool'
+import { useInput } from "ink";
+import { ToolUseConfirm } from "@components/permissions/PermissionRequest";
+import { BinaryFeedbackContext } from "@screens/REPL";
+import type { SetToolJSXFn } from "@tool";
 
 export function useCancelRequest(
   setToolJSX: SetToolJSXFn,
@@ -14,24 +14,24 @@ export function useCancelRequest(
 ) {
   useInput((_, key) => {
     if (!key.escape) {
-      return
+      return;
     }
     if (abortSignal?.aborted) {
-      return
+      return;
     }
     if (!abortSignal) {
-      return
+      return;
     }
     if (!isLoading) {
-      return
+      return;
     }
     if (isMessageSelectorVisible) {
-      return
+      return;
     }
 
-    setToolJSX(null)
-    setToolUseConfirm(null)
-    setBinaryFeedbackContext(null)
-    onCancel()
-  })
+    setToolJSX(null);
+    setToolUseConfirm(null);
+    setBinaryFeedbackContext(null);
+    onCancel();
+  });
 }

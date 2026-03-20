@@ -1,52 +1,52 @@
-import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
-import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
-import * as z from 'zod/v4'
+import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import * as z from "zod/v4";
 
 const server = new McpServer({
-  name: 'kode-test-stdio-server',
-  version: '1.0.0',
-})
+  name: "kode-test-stdio-server",
+  version: "1.0.0",
+});
 
 server.registerTool(
-  'echo',
+  "echo",
   {
-    title: 'Echo Tool',
-    description: 'Echoes back the provided message',
+    title: "Echo Tool",
+    description: "Echoes back the provided message",
     inputSchema: { message: z.string() },
     outputSchema: { echo: z.string() },
   },
   async ({ message }) => {
-    const output = { echo: `Tool echo: ${message}` }
+    const output = { echo: `Tool echo: ${message}` };
     return {
-      content: [{ type: 'text', text: JSON.stringify(output) }],
+      content: [{ type: "text", text: JSON.stringify(output) }],
       structuredContent: output,
-    }
+    };
   },
-)
+);
 
 server.registerPrompt(
-  'hello',
+  "hello",
   {
-    title: 'Hello Prompt',
-    description: 'Says hello',
+    title: "Hello Prompt",
+    description: "Says hello",
     argsSchema: { name: z.string() },
   },
   ({ name }) => ({
     messages: [
       {
-        role: 'assistant',
+        role: "assistant",
         content: {
-          type: 'text',
+          type: "text",
           text: `Hello, ${name}!`,
         },
       },
     ],
   }),
-)
+);
 
-const transport = new StdioServerTransport()
-await server.connect(transport)
+const transport = new StdioServerTransport();
+await server.connect(transport);
 
-process.stdin.on('close', () => {
-  process.exit(0)
-})
+process.stdin.on("close", () => {
+  process.exit(0);
+});

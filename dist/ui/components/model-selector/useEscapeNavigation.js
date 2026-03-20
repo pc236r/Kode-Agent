@@ -1,15 +1,18 @@
-import { useRef } from 'react';
-import { useInput } from 'ink';
+import { useRef } from "react";
+import { useInput } from "ink";
 export function useEscapeNavigation(onEscape, _abortController) {
-    const handledRef = useRef(false);
-    useInput((_input, key) => {
-        if (key.escape && !handledRef.current) {
-            handledRef.current = true;
-            setTimeout(() => {
-                handledRef.current = false;
-            }, 100);
-            onEscape();
-        }
-    }, { isActive: true });
+  const handledRef = useRef(false);
+  useInput(
+    (_input, key) => {
+      if (key.escape && !handledRef.current) {
+        handledRef.current = true;
+        setTimeout(() => {
+          handledRef.current = false;
+        }, 100);
+        onEscape();
+      }
+    },
+    { isActive: true },
+  );
 }
 //# sourceMappingURL=useEscapeNavigation.js.map

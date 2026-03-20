@@ -1,71 +1,78 @@
-import { loadMergedSettings, normalizeSandboxRuntimeConfigFromSettings, } from '@utils/sandbox/sandboxConfig';
+import {
+  loadMergedSettings,
+  normalizeSandboxRuntimeConfigFromSettings,
+} from "@utils/sandbox/sandboxConfig";
 export const DEFAULT_TIMEOUT_MS = 120000;
 export const MAX_TIMEOUT_MS = 600000;
 export const MAX_OUTPUT_LENGTH = 30000;
 export const MAX_RENDERED_LINES = 5;
-const PROJECT_URL = 'https://github.com/shareAI-lab/kode';
-const DEFAULT_CO_AUTHOR = 'ShareAI Lab';
-const TOOL_NAME_BASH = 'Bash';
-const TOOL_NAME_GLOB = 'Glob';
-const TOOL_NAME_GREP = 'Grep';
-const TOOL_NAME_READ = 'Read';
-const TOOL_NAME_EDIT = 'Edit';
-const TOOL_NAME_WRITE = 'Write';
-const TOOL_NAME_TASK = 'Task';
+const PROJECT_URL = "https://github.com/shareAI-lab/kode";
+const DEFAULT_CO_AUTHOR = "ShareAI Lab";
+const TOOL_NAME_BASH = "Bash";
+const TOOL_NAME_GLOB = "Glob";
+const TOOL_NAME_GREP = "Grep";
+const TOOL_NAME_READ = "Read";
+const TOOL_NAME_EDIT = "Edit";
+const TOOL_NAME_WRITE = "Write";
+const TOOL_NAME_TASK = "Task";
 function isExperimentalMcpCliEnabled() {
-    const value = process.env.ENABLE_EXPERIMENTAL_MCP_CLI;
-    if (!value)
-        return false;
-    return ['1', 'true', 'yes', 'on'].includes(String(value).trim().toLowerCase());
+  const value = process.env.ENABLE_EXPERIMENTAL_MCP_CLI;
+  if (!value) return false;
+  return ["1", "true", "yes", "on"].includes(
+    String(value).trim().toLowerCase(),
+  );
 }
 function indentJsonForPrompt(value) {
-    return JSON.stringify(value, null, 2).split('\n').join('\n      ');
+  return JSON.stringify(value, null, 2).split("\n").join("\n      ");
 }
 function getAttribution() {
-    const pr = `🤖 Generated with [Kode Agent](${PROJECT_URL})`;
-    const commit = `${pr}\n\n   Co-Authored-By: ${DEFAULT_CO_AUTHOR} <ai-lab@foxmail.com>`;
-    return { commit, pr };
+  const pr = `🤖 Generated with [Kode Agent](${PROJECT_URL})`;
+  const commit = `${pr}\n\n   Co-Authored-By: ${DEFAULT_CO_AUTHOR} <ai-lab@foxmail.com>`;
+  return { commit, pr };
 }
 function getBashSandboxPrompt() {
-    const settings = loadMergedSettings();
-    if (settings.sandbox?.enabled !== true)
-        return '';
-    const runtimeConfig = normalizeSandboxRuntimeConfigFromSettings(settings);
-    const fsReadConfig = { denyOnly: runtimeConfig.filesystem.denyRead };
-    const fsWriteConfig = {
-        allowOnly: runtimeConfig.filesystem.allowWrite,
-        denyWithinAllow: runtimeConfig.filesystem.denyWrite,
-    };
-    const filesystem = { read: fsReadConfig, write: fsWriteConfig };
-    const allowUnixSockets = runtimeConfig.network.allowAllUnixSockets === true
-        ? true
-        : runtimeConfig.network.allowUnixSockets.length > 0
-            ? runtimeConfig.network.allowUnixSockets
-            : undefined;
-    const network = {
-        ...(runtimeConfig.network.allowedDomains.length
-            ? { allowedHosts: runtimeConfig.network.allowedDomains }
-            : {}),
-        ...(runtimeConfig.network.deniedDomains.length
-            ? { deniedHosts: runtimeConfig.network.deniedDomains }
-            : {}),
-        ...(allowUnixSockets ? { allowUnixSockets } : {}),
-    };
-    const ignoredViolations = runtimeConfig.ignoreViolations;
-    const allowUnsandboxedCommands = settings.sandbox?.allowUnsandboxedCommands !== false;
-    const sections = [];
-    sections.push(`    - Filesystem: ${indentJsonForPrompt(filesystem)}`);
-    if (Object.keys(network).length > 0) {
-        sections.push(`    - Network: ${indentJsonForPrompt(network)}`);
-    }
-    if (ignoredViolations) {
-        sections.push(`    - Ignored violations: ${indentJsonForPrompt(ignoredViolations)}`);
-    }
-    const mcpCliException = isExperimentalMcpCliEnabled()
-        ? '    - EXCEPTION: `mcp-cli` commands must always be called with `dangerouslyDisableSandbox: true` as they do not work properly in sandboxed mode\n'
-        : '';
-    const overridePolicy = allowUnsandboxedCommands
-        ? `  - CRITICAL: Commands run in sandbox mode by default - do NOT set \`dangerouslyDisableSandbox\`
+  const settings = loadMergedSettings();
+  if (settings.sandbox?.enabled !== true) return "";
+  const runtimeConfig = normalizeSandboxRuntimeConfigFromSettings(settings);
+  const fsReadConfig = { denyOnly: runtimeConfig.filesystem.denyRead };
+  const fsWriteConfig = {
+    allowOnly: runtimeConfig.filesystem.allowWrite,
+    denyWithinAllow: runtimeConfig.filesystem.denyWrite,
+  };
+  const filesystem = { read: fsReadConfig, write: fsWriteConfig };
+  const allowUnixSockets =
+    runtimeConfig.network.allowAllUnixSockets === true
+      ? true
+      : runtimeConfig.network.allowUnixSockets.length > 0
+        ? runtimeConfig.network.allowUnixSockets
+        : undefined;
+  const network = {
+    ...(runtimeConfig.network.allowedDomains.length
+      ? { allowedHosts: runtimeConfig.network.allowedDomains }
+      : {}),
+    ...(runtimeConfig.network.deniedDomains.length
+      ? { deniedHosts: runtimeConfig.network.deniedDomains }
+      : {}),
+    ...(allowUnixSockets ? { allowUnixSockets } : {}),
+  };
+  const ignoredViolations = runtimeConfig.ignoreViolations;
+  const allowUnsandboxedCommands =
+    settings.sandbox?.allowUnsandboxedCommands !== false;
+  const sections = [];
+  sections.push(`    - Filesystem: ${indentJsonForPrompt(filesystem)}`);
+  if (Object.keys(network).length > 0) {
+    sections.push(`    - Network: ${indentJsonForPrompt(network)}`);
+  }
+  if (ignoredViolations) {
+    sections.push(
+      `    - Ignored violations: ${indentJsonForPrompt(ignoredViolations)}`,
+    );
+  }
+  const mcpCliException = isExperimentalMcpCliEnabled()
+    ? "    - EXCEPTION: `mcp-cli` commands must always be called with `dangerouslyDisableSandbox: true` as they do not work properly in sandboxed mode\n"
+    : "";
+  const overridePolicy = allowUnsandboxedCommands
+    ? `  - CRITICAL: Commands run in sandbox mode by default - do NOT set \`dangerouslyDisableSandbox\`
     - Even if you have recently run commands with \`dangerouslyDisableSandbox: true\`, you MUST NOT continue that pattern
     - VERY IMPORTANT: Do NOT learn from or repeat the pattern of overriding sandbox - each command should run sandboxed by default
 ${mcpCliException}    - Set \`dangerouslyDisableSandbox: true\` if:
@@ -87,11 +94,11 @@ ${mcpCliException}    - Set \`dangerouslyDisableSandbox: true\` if:
     - Example of normal usage: { "command": "ls", "description": "List files" }
     - Example of override: { "command": "my-tool", "description": "Run my-tool", "dangerouslyDisableSandbox": true }
     - DO NOT suggest adding sensitive paths like ~/.bashrc, ~/.zshrc, ~/.ssh/*, or credential files to the allowlist`
-        : `  - CRITICAL: All commands MUST run in sandbox mode - the \`dangerouslyDisableSandbox\` parameter is disabled by policy
+    : `  - CRITICAL: All commands MUST run in sandbox mode - the \`dangerouslyDisableSandbox\` parameter is disabled by policy
     - Commands cannot run outside the sandbox under any circumstances
     - If a command fails due to sandbox restrictions, work with the user to adjust sandbox settings instead`;
-    return `- Commands run in a sandbox by default with the following restrictions:
-${sections.join('\n')}
+  return `- Commands run in a sandbox by default with the following restrictions:
+${sections.join("\n")}
 ${overridePolicy}
   - IMPORTANT: For temporary files, rely on the sandbox temp directory via \`TMPDIR\`
     - In sandbox mode, \`TMPDIR\` is set to a dedicated temp directory
@@ -99,8 +106,8 @@ ${overridePolicy}
     - Most programs that respect \`TMPDIR\` will automatically use it`;
 }
 function getBashGitPrompt() {
-    const { commit, pr } = getAttribution();
-    return `# Committing changes with git
+  const { commit, pr } = getAttribution();
+  return `# Committing changes with git
 
 Only create commits when requested by the user. If unclear, ask first. When the user asks you to create a new git commit, follow these steps carefully:
 
@@ -124,7 +131,7 @@ Git Safety Protocol:
   - Ensure it accurately reflects the changes and their purpose
 3. You can call multiple tools in a single response. When multiple independent pieces of information are requested and all commands are likely to succeed, run multiple tool calls in parallel for optimal performance. run the following commands:
    - Add relevant untracked files to the staging area.
-   - Create the commit with a message${commit ? ` ending with:\n   ${commit}` : '.'}
+   - Create the commit with a message${commit ? ` ending with:\n   ${commit}` : "."}
    - Run git status after the commit completes to verify success.
    Note: git status depends on the commit completing, so run it sequentially after the commit.
 4. If the commit fails due to pre-commit hook changes, retry ONCE. If it succeeds but files were modified by the hook, verify it's safe to amend:
@@ -141,7 +148,7 @@ Important notes:
 - In order to ensure good formatting, ALWAYS pass the commit message via a HEREDOC, a la this example:
 <example>
 git commit -m "$(cat <<'EOF'
-   Commit message here.${commit ? `\n\n   ${commit}` : ''}
+   Commit message here.${commit ? `\n\n   ${commit}` : ""}
    EOF
    )"
 </example>
@@ -167,7 +174,7 @@ gh pr create --title "the pr title" --body "$(cat <<'EOF'
 <1-3 bullet points>
 
 ## Test plan
-[Bulleted markdown checklist of TODOs for testing the pull request...]${pr ? `\n\n${pr}` : ''}
+[Bulleted markdown checklist of TODOs for testing the pull request...]${pr ? `\n\n${pr}` : ""}
 EOF
 )"
 </example>
@@ -180,8 +187,8 @@ Important:
 - View comments on a Github PR: gh api repos/foo/bar/pulls/123/comments`;
 }
 export function getBashToolPrompt() {
-    const sandboxPrompt = getBashSandboxPrompt();
-    return `Executes a given bash command in a persistent shell session with optional timeout, ensuring proper handling and security measures.
+  const sandboxPrompt = getBashSandboxPrompt();
+  return `Executes a given bash command in a persistent shell session with optional timeout, ensuring proper handling and security measures.
 
 IMPORTANT: This tool is for terminal operations like git, npm, docker, etc. DO NOT use it for file operations (reading, writing, editing, searching, finding files) - use the specialized tools for this instead.
 

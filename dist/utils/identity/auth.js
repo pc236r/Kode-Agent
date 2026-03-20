@@ -1,7 +1,7 @@
 export function isAnthropicAuthEnabled() {
-    return false;
+  return false;
 }
 export function isLoggedInToAnthropic() {
-    return false;
+  return false;
 }
 //# sourceMappingURL=auth.js.map

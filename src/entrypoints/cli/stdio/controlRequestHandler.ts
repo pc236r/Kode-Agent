@@ -1,89 +1,89 @@
 export function createPrintModeControlRequestHandler(args: {
-  printOptions: any
-  mcpClients: any[]
+  printOptions: any;
+  mcpClients: any[];
 }): (msg: any) => Promise<any> {
-  return async msg => {
-    const subtype = msg.request?.subtype
+  return async (msg) => {
+    const subtype = msg.request?.subtype;
 
-    if (subtype === 'initialize') {
-      return
+    if (subtype === "initialize") {
+      return;
     }
 
-    if (subtype === 'set_permission_mode') {
-      const mode = (msg.request as any)?.mode
+    if (subtype === "set_permission_mode") {
+      const mode = (msg.request as any)?.mode;
       if (
-        mode === 'default' ||
-        mode === 'acceptEdits' ||
-        mode === 'plan' ||
-        mode === 'dontAsk' ||
-        mode === 'bypassPermissions'
+        mode === "default" ||
+        mode === "acceptEdits" ||
+        mode === "plan" ||
+        mode === "dontAsk" ||
+        mode === "bypassPermissions"
       ) {
         if (args.printOptions.toolPermissionContext) {
-          args.printOptions.toolPermissionContext.mode = mode
+          args.printOptions.toolPermissionContext.mode = mode;
         }
       }
-      return
+      return;
     }
 
-    if (subtype === 'set_model') {
-      const requested = (msg.request as any)?.model
-      if (requested === 'default') {
-        args.printOptions.model = undefined as any
-      } else if (typeof requested === 'string' && requested.trim()) {
-        args.printOptions.model = requested.trim()
+    if (subtype === "set_model") {
+      const requested = (msg.request as any)?.model;
+      if (requested === "default") {
+        args.printOptions.model = undefined as any;
+      } else if (typeof requested === "string" && requested.trim()) {
+        args.printOptions.model = requested.trim();
       }
-      return
+      return;
     }
 
-    if (subtype === 'set_max_thinking_tokens') {
-      const value = (msg.request as any)?.max_thinking_tokens
+    if (subtype === "set_max_thinking_tokens") {
+      const value = (msg.request as any)?.max_thinking_tokens;
       if (value === null) {
-        args.printOptions.maxThinkingTokens = 0
+        args.printOptions.maxThinkingTokens = 0;
       } else if (
-        typeof value === 'number' &&
+        typeof value === "number" &&
         Number.isFinite(value) &&
         value >= 0
       ) {
-        args.printOptions.maxThinkingTokens = value
+        args.printOptions.maxThinkingTokens = value;
       }
-      return
+      return;
     }
 
-    if (subtype === 'mcp_status') {
+    if (subtype === "mcp_status") {
       return {
-        mcpServers: args.mcpClients.map(c => ({
+        mcpServers: args.mcpClients.map((c) => ({
           name: c.name,
           status: c.type,
-          ...(c.type === 'connected' && c.capabilities
+          ...(c.type === "connected" && c.capabilities
             ? { serverInfo: c.capabilities }
             : {}),
         })),
-      }
+      };
     }
 
-    if (subtype === 'mcp_message') {
-      const serverName = (msg.request as any)?.server_name
-      const message = (msg.request as any)?.message
-      if (typeof serverName === 'string' && serverName) {
-        const found = args.mcpClients.find(c => c.name === serverName)
-        if (found && found.type === 'connected') {
-          const transport = (found.client as any)?.transport
-          if (transport && typeof transport.onmessage === 'function') {
-            transport.onmessage(message)
+    if (subtype === "mcp_message") {
+      const serverName = (msg.request as any)?.server_name;
+      const message = (msg.request as any)?.message;
+      if (typeof serverName === "string" && serverName) {
+        const found = args.mcpClients.find((c) => c.name === serverName);
+        if (found && found.type === "connected") {
+          const transport = (found.client as any)?.transport;
+          if (transport && typeof transport.onmessage === "function") {
+            transport.onmessage(message);
           }
         }
       }
-      return
+      return;
     }
 
-    if (subtype === 'mcp_set_servers') {
-      return { ok: true, sdkServersChanged: false }
+    if (subtype === "mcp_set_servers") {
+      return { ok: true, sdkServersChanged: false };
     }
 
-    if (subtype === 'rewind_files') {
-      throw new Error('rewind_files is not supported in Kode yet.')
+    if (subtype === "rewind_files") {
+      throw new Error("rewind_files is not supported in Kode yet.");
     }
 
-    throw new Error(`Unsupported control request subtype: ${String(subtype)}`)
-  }
+    throw new Error(`Unsupported control request subtype: ${String(subtype)}`);
+  };
 }

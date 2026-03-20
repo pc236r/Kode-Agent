@@ -1,22 +1,22 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useState } from "react";
 
 export type VerificationStatus =
-  | 'loading'
-  | 'valid'
-  | 'invalid'
-  | 'missing'
-  | 'error'
+  | "loading"
+  | "valid"
+  | "invalid"
+  | "missing"
+  | "error";
 
 export type ApiKeyVerificationResult = {
-  status: VerificationStatus
-  reverify: () => Promise<void>
-  error: Error | null
-}
+  status: VerificationStatus;
+  reverify: () => Promise<void>;
+  error: Error | null;
+};
 
 export function useApiKeyVerification(): ApiKeyVerificationResult {
   return {
-    status: 'valid',
+    status: "valid",
     reverify: async () => {},
     error: null,
-  }
+  };
 }

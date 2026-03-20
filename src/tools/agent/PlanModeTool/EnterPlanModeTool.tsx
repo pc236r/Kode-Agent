@@ -1,60 +1,60 @@
-import { Box, Text } from 'ink'
-import React from 'react'
-import { z } from 'zod'
-import { Tool } from '@tool'
-import { enterPlanMode } from '@utils/plan/planMode'
-import { ENTER_DESCRIPTION, ENTER_PROMPT, ENTER_TOOL_NAME } from './prompt'
-import { getTheme } from '@utils/theme'
-import { BLACK_CIRCLE } from '@constants/figures'
-import { setPermissionMode } from '@utils/permissions/permissionModeState'
+import { Box, Text } from "ink";
+import React from "react";
+import { z } from "zod";
+import { Tool } from "@tool";
+import { enterPlanMode } from "@utils/plan/planMode";
+import { ENTER_DESCRIPTION, ENTER_PROMPT, ENTER_TOOL_NAME } from "./prompt";
+import { getTheme } from "@utils/theme";
+import { BLACK_CIRCLE } from "@constants/figures";
+import { setPermissionMode } from "@utils/permissions/permissionModeState";
 
-const inputSchema = z.strictObject({})
+const inputSchema = z.strictObject({});
 
 type Output = {
-  message: string
-}
+  message: string;
+};
 
 export const EnterPlanModeTool = {
   name: ENTER_TOOL_NAME,
   async description() {
-    return ENTER_DESCRIPTION
+    return ENTER_DESCRIPTION;
   },
   userFacingName() {
-    return ''
+    return "";
   },
   inputSchema,
   isReadOnly() {
-    return true
+    return true;
   },
   isConcurrencySafe() {
-    return true
+    return true;
   },
   async isEnabled() {
-    return true
+    return true;
   },
   needsPermissions() {
-    return true
+    return true;
   },
   requiresUserInteraction() {
-    return true
+    return true;
   },
   async prompt() {
-    return ENTER_PROMPT
+    return ENTER_PROMPT;
   },
   renderToolUseMessage() {
-    return ''
+    return "";
   },
   renderToolUseRejectedMessage() {
-    const theme = getTheme()
+    const theme = getTheme();
     return (
       <Box flexDirection="row" marginTop={1}>
         <Text color={theme.text}>{BLACK_CIRCLE}</Text>
         <Text> User declined to enter plan mode</Text>
       </Box>
-    )
+    );
   },
   renderToolResultMessage(_output: Output) {
-    const theme = getTheme()
+    const theme = getTheme();
     return (
       <Box flexDirection="column" marginTop={1}>
         <Box flexDirection="row">
@@ -68,7 +68,7 @@ export const EnterPlanModeTool = {
           </Text>
         </Box>
       </Box>
-    )
+    );
   },
   renderResultForAssistant(output: Output) {
     return `${output.message}
@@ -81,24 +81,24 @@ In plan mode, you should:
 5. Design a concrete implementation strategy
 6. When ready, use ExitPlanMode to present your plan for approval
 
-Remember: DO NOT write or edit any files yet. This is a read-only exploration and planning phase.`
+Remember: DO NOT write or edit any files yet. This is a read-only exploration and planning phase.`;
   },
   async *call(_input: z.infer<typeof inputSchema>, context: any) {
     if (context?.agentId) {
-      throw new Error('EnterPlanMode tool cannot be used in agent contexts')
+      throw new Error("EnterPlanMode tool cannot be used in agent contexts");
     }
 
-    setPermissionMode(context, 'plan')
-    enterPlanMode(context)
+    setPermissionMode(context, "plan");
+    enterPlanMode(context);
 
     const output: Output = {
       message:
-        'Entered plan mode. You should now focus on exploring the codebase and designing an implementation approach.',
-    }
+        "Entered plan mode. You should now focus on exploring the codebase and designing an implementation approach.",
+    };
     yield {
-      type: 'result',
+      type: "result",
       data: output,
       resultForAssistant: this.renderResultForAssistant(output),
-    }
+    };
   },
-} satisfies Tool<typeof inputSchema, Output>
+} satisfies Tool<typeof inputSchema, Output>;

@@ -1,58 +1,58 @@
-import * as React from 'react'
-import { Box, Text } from 'ink'
-import { getTheme } from '@utils/theme'
+import * as React from "react";
+import { Box, Text } from "ink";
+import { getTheme } from "@utils/theme";
 
-export type RiskScoreCategory = 'low' | 'moderate' | 'high'
+export type RiskScoreCategory = "low" | "moderate" | "high";
 
 export function categoryForRiskScore(riskScore: number): RiskScoreCategory {
-  return riskScore >= 70 ? 'high' : riskScore >= 30 ? 'moderate' : 'low'
+  return riskScore >= 70 ? "high" : riskScore >= 30 ? "moderate" : "low";
 }
 
 function colorSchemeForRiskScoreCategory(category: RiskScoreCategory): {
-  highlightColor: string
-  textColor: string
+  highlightColor: string;
+  textColor: string;
 } {
-  const theme = getTheme()
+  const theme = getTheme();
   switch (category) {
-    case 'low':
+    case "low":
       return {
         highlightColor: theme.success,
         textColor: theme.permission,
-      }
-    case 'moderate':
+      };
+    case "moderate":
       return {
         highlightColor: theme.warning,
         textColor: theme.warning,
-      }
-    case 'high':
+      };
+    case "high":
       return {
         highlightColor: theme.error,
         textColor: theme.error,
-      }
+      };
   }
 }
 
 export function textColorForRiskScore(riskScore: number | null): string {
   if (riskScore === null) {
-    return getTheme().permission
+    return getTheme().permission;
   }
-  const category = categoryForRiskScore(riskScore)
-  return colorSchemeForRiskScoreCategory(category).textColor
+  const category = categoryForRiskScore(riskScore);
+  return colorSchemeForRiskScoreCategory(category).textColor;
 }
 
 export function PermissionRiskScore({
   riskScore,
 }: {
-  riskScore: number
+  riskScore: number;
 }): React.ReactNode {
-  const category = categoryForRiskScore(riskScore)
-  return <Text color={textColorForRiskScore(riskScore)}>Risk: {category}</Text>
+  const category = categoryForRiskScore(riskScore);
+  return <Text color={textColorForRiskScore(riskScore)}>Risk: {category}</Text>;
 }
 
 type Props = {
-  title: string
-  riskScore: number | null
-}
+  title: string;
+  riskScore: number | null;
+};
 
 export function PermissionRequestTitle({
   title,
@@ -65,5 +65,5 @@ export function PermissionRequestTitle({
       </Text>
       {riskScore !== null && <PermissionRiskScore riskScore={riskScore} />}
     </Box>
-  )
+  );
 }

@@ -1,4 +1,4 @@
-export const TOOL_NAME_FOR_PROMPT = 'LSP';
+export const TOOL_NAME_FOR_PROMPT = "LSP";
 export const PROMPT = `Interact with Language Server Protocol (LSP) servers to get code intelligence features.
 
 Supported operations:

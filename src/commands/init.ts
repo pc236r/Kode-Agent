@@ -1,24 +1,24 @@
-import type { Command } from '@commands'
-import { markProjectOnboardingComplete } from '@components/ProjectOnboarding'
-import { PROJECT_FILE } from '@constants/product'
+import type { Command } from "@commands";
+import { markProjectOnboardingComplete } from "@components/ProjectOnboarding";
+import { PROJECT_FILE } from "@constants/product";
 const command = {
-  type: 'prompt',
-  name: 'init',
+  type: "prompt",
+  name: "init",
   description: `Initialize a new ${PROJECT_FILE} file with codebase documentation`,
   isEnabled: true,
   isHidden: false,
-  progressMessage: 'analyzing your codebase',
+  progressMessage: "analyzing your codebase",
   userFacingName() {
-    return 'init'
+    return "init";
   },
   async getPromptForCommand(_args: string) {
-    markProjectOnboardingComplete()
+    markProjectOnboardingComplete();
     return [
       {
-        role: 'user',
+        role: "user",
         content: [
           {
-            type: 'text',
+            type: "text",
             text: `Please analyze this codebase and create a ${PROJECT_FILE} file containing:
 1. Build/lint/test commands - especially for running a single test
 2. Code style guidelines including imports, formatting, types, naming conventions, error handling, etc.
@@ -29,8 +29,8 @@ If there are Cursor rules (in .cursor/rules/ or .cursorrules) or Copilot rules (
           },
         ],
       },
-    ]
+    ];
   },
-} satisfies Command
+} satisfies Command;
 
-export default command
+export default command;

@@ -1,38 +1,38 @@
-import { ToolUseBlockParam } from '@anthropic-ai/sdk/resources/index.mjs'
-import { Box, Newline, Static, Text } from 'ink'
+import { ToolUseBlockParam } from "@anthropic-ai/sdk/resources/index.mjs";
+import { Box, Newline, Static, Text } from "ink";
 import ProjectOnboarding, {
   markProjectOnboardingComplete,
-} from '@components/ProjectOnboarding'
-import { CostThresholdDialog } from '@components/CostThresholdDialog'
-import * as React from 'react'
-import { useEffect, useMemo, useRef, useState, useCallback } from 'react'
-import { Command } from '@commands'
-import { Logo } from '@components/Logo'
-import { Message } from '@components/Message'
-import { MessageResponse } from '@components/MessageResponse'
-import { MessageSelector } from '@components/MessageSelector'
+} from "@components/ProjectOnboarding";
+import { CostThresholdDialog } from "@components/CostThresholdDialog";
+import * as React from "react";
+import { useEffect, useMemo, useRef, useState, useCallback } from "react";
+import { Command } from "@commands";
+import { Logo } from "@components/Logo";
+import { Message } from "@components/Message";
+import { MessageResponse } from "@components/MessageResponse";
+import { MessageSelector } from "@components/MessageSelector";
 import {
   PermissionRequest,
   type ToolUseConfirm,
-} from '@components/permissions/PermissionRequest'
-import PromptInput from '@components/PromptInput'
-import { RequestStatusIndicator } from '@components/RequestStatusIndicator'
-import { getSystemPrompt } from '@constants/prompts'
-import { getContext } from '@context'
-import { getTotalCost } from '@costTracker'
-import { useCostSummary } from '@hooks/useCostSummary'
-import { useLogStartupTime } from '@hooks/useLogStartupTime'
-import { addToHistory } from '@history'
-import { useApiKeyVerification } from '@hooks/useApiKeyVerification'
-import { useCancelRequest } from '@hooks/useCancelRequest'
-import useCanUseTool from '@hooks/useCanUseTool'
-import { useLogMessages } from '@hooks/useLogMessages'
-import { PermissionProvider } from '@context/PermissionContext'
+} from "@components/permissions/PermissionRequest";
+import PromptInput from "@components/PromptInput";
+import { RequestStatusIndicator } from "@components/RequestStatusIndicator";
+import { getSystemPrompt } from "@constants/prompts";
+import { getContext } from "@context";
+import { getTotalCost } from "@costTracker";
+import { useCostSummary } from "@hooks/useCostSummary";
+import { useLogStartupTime } from "@hooks/useLogStartupTime";
+import { addToHistory } from "@history";
+import { useApiKeyVerification } from "@hooks/useApiKeyVerification";
+import { useCancelRequest } from "@hooks/useCancelRequest";
+import useCanUseTool from "@hooks/useCanUseTool";
+import { useLogMessages } from "@hooks/useLogMessages";
+import { PermissionProvider } from "@context/PermissionContext";
 import {
   setMessagesGetter,
   setMessagesSetter,
   setModelConfigChangeHandler,
-} from '@messages'
+} from "@messages";
 import {
   type AssistantMessage,
   type BinaryFeedbackResult,
@@ -40,12 +40,12 @@ import {
   type ProgressMessage,
   type UserMessage,
   query,
-} from '@query'
-import type { WrappedClient } from '@services/mcpClient'
-import type { Tool } from '@tool'
-import { getGlobalConfig, saveGlobalConfig } from '@utils/config'
-import { MACRO } from '@constants/macros'
-import { getNextAvailableLogForkNumber, logError } from '@utils/log'
+} from "@query";
+import type { WrappedClient } from "@services/mcpClient";
+import type { Tool } from "@tool";
+import { getGlobalConfig, saveGlobalConfig } from "@utils/config";
+import { MACRO } from "@constants/macros";
+import { getNextAvailableLogForkNumber, logError } from "@utils/log";
 import {
   getErroredToolUseMessages,
   getInProgressToolUseIDs,
@@ -61,40 +61,40 @@ import {
   reorderMessages,
   extractTag,
   createAssistantMessage,
-} from '@utils/messages'
-import { getReplStaticPrefixLength } from '@utils/terminal/replStaticSplit'
-import { getModelManager, ModelManager } from '@utils/model'
-import { clearTerminal, updateTerminalTitle } from '@utils/terminal'
-import { BinaryFeedback } from '@components/binary-feedback/BinaryFeedback'
-import { getMaxThinkingTokens } from '@utils/model/thinking'
-import { getOriginalCwd } from '@utils/state'
-import { handleHashCommand } from '@utils/commands/hashCommand'
-import { debug as debugLogger } from '@utils/log/debugLogger'
-import { getToolPermissionContextForConversationKey } from '@utils/permissions/toolPermissionContextState'
+} from "@utils/messages";
+import { getReplStaticPrefixLength } from "@utils/terminal/replStaticSplit";
+import { getModelManager, ModelManager } from "@utils/model";
+import { clearTerminal, updateTerminalTitle } from "@utils/terminal";
+import { BinaryFeedback } from "@components/binary-feedback/BinaryFeedback";
+import { getMaxThinkingTokens } from "@utils/model/thinking";
+import { getOriginalCwd } from "@utils/state";
+import { handleHashCommand } from "@utils/commands/hashCommand";
+import { debug as debugLogger } from "@utils/log/debugLogger";
+import { getToolPermissionContextForConversationKey } from "@utils/permissions/toolPermissionContextState";
 
 type Props = {
-  commands: Command[]
-  safeMode?: boolean
-  debug?: boolean
-  disableSlashCommands?: boolean
-  initialForkNumber?: number | undefined
-  initialPrompt: string | undefined
-  messageLogName: string
-  shouldShowPromptInput: boolean
-  tools: Tool[]
-  verbose: boolean | undefined
-  initialMessages?: MessageType[]
-  mcpClients?: WrappedClient[]
-  isDefaultModel?: boolean
-  initialUpdateVersion?: string | null
-  initialUpdateCommands?: string[] | null
-}
+  commands: Command[];
+  safeMode?: boolean;
+  debug?: boolean;
+  disableSlashCommands?: boolean;
+  initialForkNumber?: number | undefined;
+  initialPrompt: string | undefined;
+  messageLogName: string;
+  shouldShowPromptInput: boolean;
+  tools: Tool[];
+  verbose: boolean | undefined;
+  initialMessages?: MessageType[];
+  mcpClients?: WrappedClient[];
+  isDefaultModel?: boolean;
+  initialUpdateVersion?: string | null;
+  initialUpdateCommands?: string[] | null;
+};
 
 export type BinaryFeedbackContext = {
-  m1: AssistantMessage
-  m2: AssistantMessage
-  resolve: (result: BinaryFeedbackResult) => void
-}
+  m1: AssistantMessage;
+  m2: AssistantMessage;
+  resolve: (result: BinaryFeedbackResult) => void;
+};
 
 export function REPL({
   commands,
@@ -115,77 +115,79 @@ export function REPL({
 }: Props): React.ReactNode {
   const [verboseConfig] = useState(
     () => verboseFromCLI ?? getGlobalConfig().verbose,
-  )
-  const verbose = verboseConfig
+  );
+  const verbose = verboseConfig;
 
   const [forkNumber, setForkNumber] = useState(
     getNextAvailableLogForkNumber(messageLogName, initialForkNumber, 0),
-  )
-  const [uiRefreshCounter, setUiRefreshCounter] = useState(0)
+  );
+  const [uiRefreshCounter, setUiRefreshCounter] = useState(0);
 
   const [
     forkConvoWithMessagesOnTheNextRender,
     setForkConvoWithMessagesOnTheNextRender,
-  ] = useState<MessageType[] | null>(null)
+  ] = useState<MessageType[] | null>(null);
 
   const [abortController, setAbortController] =
-    useState<AbortController | null>(null)
-  const [isLoading, setIsLoading] = useState(false)
+    useState<AbortController | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
   const [toolJSX, setToolJSX] = useState<{
-    jsx: React.ReactNode | null
-    shouldHidePromptInput: boolean
-  } | null>(null)
+    jsx: React.ReactNode | null;
+    shouldHidePromptInput: boolean;
+  } | null>(null);
   const [toolUseConfirm, setToolUseConfirm] = useState<ToolUseConfirm | null>(
     null,
-  )
-  const [messages, setMessages] = useState<MessageType[]>(initialMessages ?? [])
-  const [inputValue, setInputValue] = useState('')
-  const [inputMode, setInputMode] = useState<'bash' | 'prompt' | 'koding'>(
-    'prompt',
-  )
-  const [submitCount, setSubmitCount] = useState(0)
+  );
+  const [messages, setMessages] = useState<MessageType[]>(
+    initialMessages ?? [],
+  );
+  const [inputValue, setInputValue] = useState("");
+  const [inputMode, setInputMode] = useState<"bash" | "prompt" | "koding">(
+    "prompt",
+  );
+  const [submitCount, setSubmitCount] = useState(0);
   const [isMessageSelectorVisible, setIsMessageSelectorVisible] =
-    useState(false)
-  const [showCostDialog, setShowCostDialog] = useState(false)
+    useState(false);
+  const [showCostDialog, setShowCostDialog] = useState(false);
   const [haveShownCostDialog, setHaveShownCostDialog] = useState(
     getGlobalConfig().hasAcknowledgedCostThreshold,
-  )
+  );
 
   const [binaryFeedbackContext, setBinaryFeedbackContext] =
-    useState<BinaryFeedbackContext | null>(null)
-  const updateAvailableVersion = initialUpdateVersion ?? null
-  const updateCommands = initialUpdateCommands ?? null
+    useState<BinaryFeedbackContext | null>(null);
+  const updateAvailableVersion = initialUpdateVersion ?? null;
+  const updateCommands = initialUpdateCommands ?? null;
 
   const getBinaryFeedbackResponse = useCallback(
     (
       m1: AssistantMessage,
       m2: AssistantMessage,
     ): Promise<BinaryFeedbackResult> => {
-      return new Promise<BinaryFeedbackResult>(resolvePromise => {
+      return new Promise<BinaryFeedbackResult>((resolvePromise) => {
         setBinaryFeedbackContext({
           m1,
           m2,
           resolve: resolvePromise,
-        })
-      })
+        });
+      });
     },
     [],
-  )
+  );
 
   const readFileTimestamps = useRef<{
-    [filename: string]: number
-  }>({})
+    [filename: string]: number;
+  }>({});
 
-  const { status: apiKeyStatus, reverify } = useApiKeyVerification()
+  const { status: apiKeyStatus, reverify } = useApiKeyVerification();
   function onCancel() {
     if (!isLoading) {
-      return
+      return;
     }
-    setIsLoading(false)
+    setIsLoading(false);
     if (toolUseConfirm) {
-      toolUseConfirm.onAbort()
+      toolUseConfirm.onAbort();
     } else if (abortController && !abortController.signal.aborted) {
-      abortController.abort()
+      abortController.abort();
     }
   }
 
@@ -197,41 +199,41 @@ export function REPL({
     isLoading,
     isMessageSelectorVisible,
     abortController?.signal,
-  )
+  );
 
   useEffect(() => {
     if (forkConvoWithMessagesOnTheNextRender) {
-      setForkNumber(_ => _ + 1)
-      setForkConvoWithMessagesOnTheNextRender(null)
-      setMessages(forkConvoWithMessagesOnTheNextRender)
+      setForkNumber((_) => _ + 1);
+      setForkConvoWithMessagesOnTheNextRender(null);
+      setMessages(forkConvoWithMessagesOnTheNextRender);
     }
-  }, [forkConvoWithMessagesOnTheNextRender])
+  }, [forkConvoWithMessagesOnTheNextRender]);
 
   useEffect(() => {
-    const totalCost = getTotalCost()
+    const totalCost = getTotalCost();
     if (totalCost >= 5 && !showCostDialog && !haveShownCostDialog) {
-      setShowCostDialog(true)
+      setShowCostDialog(true);
     }
-  }, [messages, showCostDialog, haveShownCostDialog])
+  }, [messages, showCostDialog, haveShownCostDialog]);
 
-  const canUseTool = useCanUseTool(setToolUseConfirm)
+  const canUseTool = useCanUseTool(setToolUseConfirm);
 
   async function onInit() {
-    reverify()
+    reverify();
 
     if (!initialPrompt) {
-      return
+      return;
     }
 
-    setIsLoading(true)
+    setIsLoading(true);
 
-    const newAbortController = new AbortController()
-    setAbortController(newAbortController)
+    const newAbortController = new AbortController();
+    setAbortController(newAbortController);
 
-    const model = new ModelManager(getGlobalConfig()).getModelName('main')
+    const model = new ModelManager(getGlobalConfig()).getModelName("main");
     const newMessages = await processUserInput(
       initialPrompt,
-      'prompt',
+      "prompt",
       setToolJSX,
       {
         abortController: newAbortController,
@@ -253,30 +255,30 @@ export function REPL({
         readFileTimestamps: readFileTimestamps.current,
       },
       null,
-    )
+    );
 
     if (newMessages.length) {
       for (const message of newMessages) {
-        if (message.type === 'user') {
-          addToHistory(initialPrompt)
+        if (message.type === "user") {
+          addToHistory(initialPrompt);
         }
       }
-      setMessages(_ => [..._, ...newMessages])
+      setMessages((_) => [..._, ...newMessages]);
 
-      const lastMessage = newMessages[newMessages.length - 1]!
-      if (lastMessage.type === 'assistant') {
-        setAbortController(null)
-        setIsLoading(false)
-        return
+      const lastMessage = newMessages[newMessages.length - 1]!;
+      if (lastMessage.type === "assistant") {
+        setAbortController(null);
+        setIsLoading(false);
+        return;
       }
 
       const [systemPrompt, context, model, maxThinkingTokens] =
         await Promise.all([
           getSystemPrompt({ disableSlashCommands }),
           getContext(),
-          new ModelManager(getGlobalConfig()).getModelName('main'),
+          new ModelManager(getGlobalConfig()).getModelName("main"),
           getMaxThinkingTokens([...messages, ...newMessages]),
-        ])
+        ]);
 
       for await (const message of query(
         [...messages, ...newMessages],
@@ -305,62 +307,62 @@ export function REPL({
         },
         getBinaryFeedbackResponse,
       )) {
-        setMessages(oldMessages => [...oldMessages, message])
+        setMessages((oldMessages) => [...oldMessages, message]);
       }
     } else {
-      addToHistory(initialPrompt)
+      addToHistory(initialPrompt);
     }
 
     setHaveShownCostDialog(
       getGlobalConfig().hasAcknowledgedCostThreshold || false,
-    )
+    );
 
-    setIsLoading(false)
-    setAbortController(null)
+    setIsLoading(false);
+    setAbortController(null);
   }
 
   async function onQuery(
     newMessages: MessageType[],
     passedAbortController?: AbortController,
   ) {
-    const controllerToUse = passedAbortController || new AbortController()
+    const controllerToUse = passedAbortController || new AbortController();
     if (!passedAbortController) {
-      setAbortController(controllerToUse)
+      setAbortController(controllerToUse);
     }
 
     const isKodingRequest =
       newMessages.length > 0 &&
-      newMessages[0].type === 'user' &&
-      'options' in newMessages[0] &&
-      newMessages[0].options?.isKodingRequest === true
+      newMessages[0].type === "user" &&
+      "options" in newMessages[0] &&
+      newMessages[0].options?.isKodingRequest === true;
 
-    setMessages(oldMessages => [...oldMessages, ...newMessages])
+    setMessages((oldMessages) => [...oldMessages, ...newMessages]);
 
-    markProjectOnboardingComplete()
+    markProjectOnboardingComplete();
 
-    const lastMessage = newMessages[newMessages.length - 1]!
+    const lastMessage = newMessages[newMessages.length - 1]!;
 
     if (
-      lastMessage.type === 'user' &&
-      typeof lastMessage.message.content === 'string'
+      lastMessage.type === "user" &&
+      typeof lastMessage.message.content === "string"
     ) {
     }
-    if (lastMessage.type === 'assistant') {
-      setAbortController(null)
-      setIsLoading(false)
-      return
+    if (lastMessage.type === "assistant") {
+      setAbortController(null);
+      setIsLoading(false);
+      return;
     }
 
     const [systemPrompt, context, model, maxThinkingTokens] = await Promise.all(
       [
         getSystemPrompt({ disableSlashCommands }),
         getContext(),
-        new ModelManager(getGlobalConfig()).getModelName('main'),
+        new ModelManager(getGlobalConfig()).getModelName("main"),
         getMaxThinkingTokens([...messages, lastMessage]),
       ],
-    )
+    );
 
-    let lastAssistantMessage: MessageType | null = null
+    let lastAssistantMessage: MessageType | null = null;
 
     for await (const message of query(
       [...messages, lastMessage],
@@ -390,91 +392,91 @@ export function REPL({
       },
       getBinaryFeedbackResponse,
     )) {
-      setMessages(oldMessages => [...oldMessages, message])
+      setMessages((oldMessages) => [...oldMessages, message]);
 
-      if (message.type === 'assistant') {
-        lastAssistantMessage = message
+      if (message.type === "assistant") {
+        lastAssistantMessage = message;
       }
     }
 
     if (
       isKodingRequest &&
       lastAssistantMessage &&
-      lastAssistantMessage.type === 'assistant'
+      lastAssistantMessage.type === "assistant"
     ) {
       try {
         const content =
-          typeof lastAssistantMessage.message.content === 'string'
+          typeof lastAssistantMessage.message.content === "string"
             ? lastAssistantMessage.message.content
             : lastAssistantMessage.message.content
-                .filter(block => block.type === 'text')
-                .map(block => (block.type === 'text' ? block.text : ''))
-                .join('\n')
+                .filter((block) => block.type === "text")
+                .map((block) => (block.type === "text" ? block.text : ""))
+                .join("\n");
 
         if (content && content.trim().length > 0) {
-          handleHashCommand(content)
+          handleHashCommand(content);
         }
       } catch (error) {
-        logError(error)
-        debugLogger.error('REPL_KODING_SAVE_PROJECT_DOCS_ERROR', { error })
+        logError(error);
+        debugLogger.error("REPL_KODING_SAVE_PROJECT_DOCS_ERROR", { error });
       }
     }
 
-    setIsLoading(false)
+    setIsLoading(false);
   }
 
-  useCostSummary()
+  useCostSummary();
 
   useEffect(() => {
-    const getMessages = () => messages
-    setMessagesGetter(getMessages)
-    setMessagesSetter(setMessages)
-  }, [messages])
+    const getMessages = () => messages;
+    setMessagesGetter(getMessages);
+    setMessagesSetter(setMessages);
+  }, [messages]);
 
   useEffect(() => {
     setModelConfigChangeHandler(() => {
-      setUiRefreshCounter(prev => prev + 1)
-    })
-  }, [])
+      setUiRefreshCounter((prev) => prev + 1);
+    });
+  }, []);
 
-  useLogMessages(messages, messageLogName, forkNumber)
+  useLogMessages(messages, messageLogName, forkNumber);
 
-  useLogStartupTime()
+  useLogStartupTime();
 
   useEffect(() => {
-    onInit()
+    onInit();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, []);
 
   const normalizedMessages = useMemo(
     () => normalizeMessages(messages).filter(isNotEmptyMessage),
     [messages],
-  )
+  );
 
   const unresolvedToolUseIDs = useMemo(
     () => getUnresolvedToolUseIDs(normalizedMessages),
     [normalizedMessages],
-  )
+  );
 
   const inProgressToolUseIDs = useMemo(
     () => getInProgressToolUseIDs(normalizedMessages),
     [normalizedMessages],
-  )
+  );
 
   const erroredToolUseIDs = useMemo(
     () =>
       new Set(
         getErroredToolUseMessages(normalizedMessages).map(
-          _ => (_.message.content[0]! as ToolUseBlockParam).id,
+          (_) => (_.message.content[0]! as ToolUseBlockParam).id,
         ),
       ),
     [normalizedMessages],
-  )
+  );
 
   const orderedMessages = useMemo(
     () => reorderMessages(normalizedMessages),
     [normalizedMessages],
-  )
+  );
 
   const replStaticPrefixLength = useMemo(
     () =>
@@ -484,14 +486,14 @@ export function REPL({
         unresolvedToolUseIDs,
       ),
     [orderedMessages, normalizedMessages, unresolvedToolUseIDs],
-  )
+  );
 
   const messagesJSX = useMemo(() => {
     return orderedMessages.map((_, index) => {
-      const toolUseID = getToolUseID(_)
+      const toolUseID = getToolUseID(_);
       const message =
-        _.type === 'progress' ? (
-          _.content.message.content[0]?.type === 'text' &&
+        _.type === "progress" ? (
+          _.content.message.content[0]?.type === "text" &&
           _.content.message.content[0].text === INTERRUPT_MESSAGE ? (
             <Message
               message={_.content}
@@ -548,23 +550,23 @@ export function REPL({
             shouldShowDot={true}
             unresolvedToolUseIDs={unresolvedToolUseIDs}
           />
-        )
+        );
 
-      const isInStaticPrefix = index < replStaticPrefixLength
+      const isInStaticPrefix = index < replStaticPrefixLength;
 
       if (debug) {
         return {
           jsx: (
             <Box
               borderStyle="single"
-              borderColor={isInStaticPrefix ? 'green' : 'red'}
+              borderColor={isInStaticPrefix ? "green" : "red"}
               key={_.uuid}
               width="100%"
             >
               {message}
             </Box>
           ),
-        }
+        };
       }
 
       return {
@@ -573,8 +575,8 @@ export function REPL({
             {message}
           </Box>
         ),
-      }
-    })
+      };
+    });
   }, [
     forkNumber,
     normalizedMessages,
@@ -591,7 +593,7 @@ export function REPL({
     mcpClients,
     isDefaultModel,
     replStaticPrefixLength,
-  ])
+  ]);
 
   const staticItems = useMemo(
     () => [
@@ -619,16 +621,16 @@ export function REPL({
       updateAvailableVersion,
       updateCommands,
     ],
-  )
+  );
 
   const transientItems = useMemo(
     () => messagesJSX.slice(replStaticPrefixLength),
     [messagesJSX, replStaticPrefixLength],
-  )
+  );
 
-  const showingCostDialog = !isLoading && showCostDialog
+  const showingCostDialog = !isLoading && showCostDialog;
 
-  const conversationKey = `${messageLogName}:${forkNumber}`
+  const conversationKey = `${messageLogName}:${forkNumber}`;
 
   return (
     <PermissionProvider
@@ -639,10 +641,10 @@ export function REPL({
         <React.Fragment key={`static-messages-${forkNumber}`}>
           <Static items={staticItems} children={(item: any) => item.jsx} />
         </React.Fragment>
-        {transientItems.map(_ => _.jsx)}
+        {transientItems.map((_) => _.jsx)}
         <Box
           borderColor="red"
-          borderStyle={debug ? 'single' : undefined}
+          borderStyle={debug ? "single" : undefined}
           flexDirection="column"
           width="100%"
         >
@@ -655,9 +657,9 @@ export function REPL({
             <BinaryFeedback
               m1={binaryFeedbackContext.m1}
               m2={binaryFeedbackContext.m2}
-              resolve={result => {
-                binaryFeedbackContext.resolve(result)
-                setTimeout(() => setBinaryFeedbackContext(null), 0)
+              resolve={(result) => {
+                binaryFeedbackContext.resolve(result);
+                setTimeout(() => setBinaryFeedbackContext(null), 0);
               }}
               verbose={verbose}
               normalizedMessages={normalizedMessages}
@@ -685,13 +687,13 @@ export function REPL({
             showingCostDialog && (
               <CostThresholdDialog
                 onDone={() => {
-                  setShowCostDialog(false)
-                  setHaveShownCostDialog(true)
-                  const projectConfig = getGlobalConfig()
+                  setShowCostDialog(false);
+                  setHaveShownCostDialog(true);
+                  const projectConfig = getGlobalConfig();
                   saveGlobalConfig({
                     ...projectConfig,
                     hasAcknowledgedCostThreshold: true,
-                  })
+                  });
                 }}
               />
             )}
@@ -709,7 +711,7 @@ export function REPL({
                   messageLogName={messageLogName}
                   tools={tools}
                   disableSlashCommands={disableSlashCommands}
-                  isDisabled={apiKeyStatus === 'invalid'}
+                  isDisabled={apiKeyStatus === "invalid"}
                   isLoading={isLoading}
                   onQuery={onQuery}
                   debug={debug}
@@ -726,7 +728,7 @@ export function REPL({
                   setAbortController={setAbortController}
                   uiRefreshCounter={uiRefreshCounter}
                   onShowMessageSelector={() =>
-                    setIsMessageSelectorVisible(prev => !prev)
+                    setIsMessageSelectorVisible((prev) => !prev)
                   }
                   setForkConvoWithMessagesOnTheNextRender={
                     setForkConvoWithMessagesOnTheNextRender
@@ -743,28 +745,28 @@ export function REPL({
             unresolvedToolUseIDs={unresolvedToolUseIDs}
             messages={messages.filter(
               (m): m is UserMessage | AssistantMessage =>
-                m.type === 'user' || m.type === 'assistant',
+                m.type === "user" || m.type === "assistant",
             )}
-            onSelect={async message => {
-              setIsMessageSelectorVisible(false)
+            onSelect={async (message) => {
+              setIsMessageSelectorVisible(false);
 
               if (!messages.includes(message)) {
-                return
+                return;
               }
 
-              onCancel()
+              onCancel();
 
               setImmediate(async () => {
-                await clearTerminal()
-                setMessages([])
+                await clearTerminal();
+                setMessages([]);
                 setForkConvoWithMessagesOnTheNextRender(
                   messages.slice(0, messages.indexOf(message)),
-                )
+                );
 
-                if (typeof message.message.content === 'string') {
-                  setInputValue(message.message.content)
+                if (typeof message.message.content === "string") {
+                  setInputValue(message.message.content);
                 }
-              })
+              });
             }}
             onEscape={() => setIsMessageSelectorVisible(false)}
             tools={tools}
@@ -773,5 +775,5 @@ export function REPL({
         <Newline />
       </React.Fragment>
     </PermissionProvider>
-  )
+  );
 }

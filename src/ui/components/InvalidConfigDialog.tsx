@@ -1,20 +1,20 @@
-import React from 'react'
-import { Box, Newline, Text, useInput } from 'ink'
-import { getTheme } from '@utils/theme'
-import { Select } from './custom-select/select'
-import { render } from 'ink'
-import { writeFileSync } from 'fs'
-import { ConfigParseError } from '@utils/text/errors'
-import { useExitOnCtrlCD } from '@hooks/useExitOnCtrlCD'
+import React from "react";
+import { Box, Newline, Text, useInput } from "ink";
+import { getTheme } from "@utils/theme";
+import { Select } from "./custom-select/select";
+import { render } from "ink";
+import { writeFileSync } from "fs";
+import { ConfigParseError } from "@utils/text/errors";
+import { useExitOnCtrlCD } from "@hooks/useExitOnCtrlCD";
 interface InvalidConfigHandlerProps {
-  error: ConfigParseError
+  error: ConfigParseError;
 }
 
 interface InvalidConfigDialogProps {
-  filePath: string
-  errorDescription: string
-  onExit: () => void
-  onReset: () => void
+  filePath: string;
+  errorDescription: string;
+  onExit: () => void;
+  onReset: () => void;
 }
 
 function InvalidConfigDialog({
@@ -23,23 +23,23 @@ function InvalidConfigDialog({
   onExit,
   onReset,
 }: InvalidConfigDialogProps): React.ReactNode {
-  const theme = getTheme()
+  const theme = getTheme();
 
   useInput((_, key) => {
     if (key.escape) {
-      onExit()
+      onExit();
     }
-  })
+  });
 
-  const exitState = useExitOnCtrlCD(() => process.exit(0))
+  const exitState = useExitOnCtrlCD(() => process.exit(0));
 
   const handleSelect = (value: string) => {
-    if (value === 'exit') {
-      onExit()
+    if (value === "exit") {
+      onExit();
     } else {
-      onReset()
+      onReset();
     }
-  }
+  };
 
   return (
     <>
@@ -65,8 +65,8 @@ function InvalidConfigDialog({
           <Text bold>Choose an option:</Text>
           <Select
             options={[
-              { label: 'Exit and fix manually', value: 'exit' },
-              { label: 'Reset with default configuration', value: 'reset' },
+              { label: "Exit and fix manually", value: "exit" },
+              { label: "Reset with default configuration", value: "reset" },
             ]}
             onChange={handleSelect}
           />
@@ -78,31 +78,31 @@ function InvalidConfigDialog({
         <Newline />
       )}
     </>
-  )
+  );
 }
 
 export function showInvalidConfigDialog({
   error,
 }: InvalidConfigHandlerProps): Promise<void> {
-  return new Promise(resolve => {
+  return new Promise((resolve) => {
     render(
       <InvalidConfigDialog
         filePath={error.filePath}
         errorDescription={error.message}
         onExit={() => {
-          resolve()
-          process.exit(1)
+          resolve();
+          process.exit(1);
         }}
         onReset={() => {
           writeFileSync(
             error.filePath,
             JSON.stringify(error.defaultConfig, null, 2),
-          )
-          resolve()
-          process.exit(0)
+          );
+          resolve();
+          process.exit(0);
         }}
       />,
       { exitOnCtrlC: false },
-    )
-  })
+    );
+  });
 }

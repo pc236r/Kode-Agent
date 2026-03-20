@@ -1,75 +1,75 @@
-import * as React from 'react'
-import { OrderedList } from '@inkjs/ui'
-import { Box, Text } from 'ink'
+import * as React from "react";
+import { OrderedList } from "@inkjs/ui";
+import { Box, Text } from "ink";
 import {
   getCurrentProjectConfig,
   getGlobalConfig,
   saveCurrentProjectConfig,
   saveGlobalConfig,
-} from '@utils/config'
-import { existsSync } from 'fs'
-import { join } from 'path'
-import { homedir } from 'os'
-import { getTheme } from '@utils/theme'
-import { RELEASE_NOTES } from '@constants/releaseNotes'
-import { gt } from 'semver'
-import { isDirEmpty } from '@utils/fs/file'
-import { MACRO } from '@constants/macros'
-import { PROJECT_FILE, PRODUCT_NAME } from '@constants/product'
+} from "@utils/config";
+import { existsSync } from "fs";
+import { join } from "path";
+import { homedir } from "os";
+import { getTheme } from "@utils/theme";
+import { RELEASE_NOTES } from "@constants/releaseNotes";
+import { gt } from "semver";
+import { isDirEmpty } from "@utils/fs/file";
+import { MACRO } from "@constants/macros";
+import { PROJECT_FILE, PRODUCT_NAME } from "@constants/product";
 
 export function markProjectOnboardingComplete(): void {
-  const projectConfig = getCurrentProjectConfig()
+  const projectConfig = getCurrentProjectConfig();
   if (!projectConfig.hasCompletedProjectOnboarding) {
     saveCurrentProjectConfig({
       ...projectConfig,
       hasCompletedProjectOnboarding: true,
-    })
+    });
   }
 }
 
 function markReleaseNotesSeen(): void {
-  const config = getGlobalConfig()
+  const config = getGlobalConfig();
   saveGlobalConfig({
     ...config,
     lastReleaseNotesSeen: MACRO.VERSION,
-  })
+  });
 }
 
 type Props = {
-  workspaceDir: string
-}
+  workspaceDir: string;
+};
 
 export default function ProjectOnboarding({
   workspaceDir,
 }: Props): React.ReactNode {
-  const projectConfig = getCurrentProjectConfig()
-  const showOnboarding = !projectConfig.hasCompletedProjectOnboarding
+  const projectConfig = getCurrentProjectConfig();
+  const showOnboarding = !projectConfig.hasCompletedProjectOnboarding;
 
-  const config = getGlobalConfig()
-  const previousVersion = config.lastReleaseNotesSeen
+  const config = getGlobalConfig();
+  const previousVersion = config.lastReleaseNotesSeen;
 
-  let releaseNotesToShow: string[] = []
+  let releaseNotesToShow: string[] = [];
   if (!previousVersion || gt(MACRO.VERSION, previousVersion)) {
-    releaseNotesToShow = RELEASE_NOTES[MACRO.VERSION] || []
+    releaseNotesToShow = RELEASE_NOTES[MACRO.VERSION] || [];
   }
-  const hasReleaseNotes = releaseNotesToShow.length > 0
+  const hasReleaseNotes = releaseNotesToShow.length > 0;
 
   React.useEffect(() => {
     if (hasReleaseNotes && !showOnboarding) {
-      markReleaseNotesSeen()
+      markReleaseNotesSeen();
     }
-  }, [hasReleaseNotes, showOnboarding])
+  }, [hasReleaseNotes, showOnboarding]);
 
   if (!showOnboarding && !hasReleaseNotes) {
-    return null
+    return null;
   }
 
-  const workspaceHasProjectGuide = existsSync(join(workspaceDir, PROJECT_FILE))
-  const isWorkspaceDirEmpty = isDirEmpty(workspaceDir)
+  const workspaceHasProjectGuide = existsSync(join(workspaceDir, PROJECT_FILE));
+  const isWorkspaceDirEmpty = isDirEmpty(workspaceDir);
   const shouldRecommendProjectGuide =
-    !workspaceHasProjectGuide && !isWorkspaceDirEmpty
+    !workspaceHasProjectGuide && !isWorkspaceDirEmpty;
 
-  const theme = getTheme()
+  const theme = getTheme();
 
   return (
     <Box flexDirection="column" gap={1} padding={1} paddingBottom={0}>
@@ -80,7 +80,7 @@ export default function ProjectOnboarding({
           <OrderedList>
             {}
             {(() => {
-              const items = []
+              const items = [];
 
               if (isWorkspaceDirEmpty) {
                 items.push(
@@ -93,7 +93,7 @@ export default function ProjectOnboarding({
                       </Text>
                     </OrderedList.Item>
                   </React.Fragment>,
-                )
+                );
               }
               if (shouldRecommendProjectGuide) {
                 items.push(
@@ -108,7 +108,7 @@ export default function ProjectOnboarding({
                       </Text>
                     </OrderedList.Item>
                   </React.Fragment>,
-                )
+                );
               }
 
               items.push(
@@ -120,7 +120,7 @@ export default function ProjectOnboarding({
                     </Text>
                   </OrderedList.Item>
                 </React.Fragment>,
-              )
+              );
 
               items.push(
                 <React.Fragment key="changes">
@@ -131,9 +131,9 @@ export default function ProjectOnboarding({
                     </Text>
                   </OrderedList.Item>
                 </React.Fragment>,
-              )
+              );
 
-              return items
+              return items;
             })()}
           </OrderedList>
         </>
@@ -168,5 +168,5 @@ export default function ProjectOnboarding({
         </Text>
       )}
     </Box>
-  )
+  );
 }

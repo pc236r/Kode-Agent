@@ -1,7 +1,7 @@
-import React from 'react'
-import { Text } from 'ink'
-import Link from 'ink-link'
-import { PRODUCT_NAME, PRODUCT_COMMAND } from '@constants/product'
+import React from "react";
+import { Text } from "ink";
+import Link from "ink-link";
+import { PRODUCT_NAME, PRODUCT_COMMAND } from "@constants/product";
 
 export function MCPServerDialogCopy(): React.ReactNode {
   return (
@@ -10,7 +10,7 @@ export function MCPServerDialogCopy(): React.ReactNode {
         MCP servers provide additional functionality to {PRODUCT_NAME}. They may
         execute code, make network requests, or access system resources via tool
         calls. All tool calls will require your explicit approval before
-        execution. For more information, see{' '}
+        execution. For more information, see{" "}
         <Link url="https://github.com/shareAI-lab/kode/blob/main/docs/mcp.md">
           MCP documentation
         </Link>
@@ -21,5 +21,5 @@ export function MCPServerDialogCopy(): React.ReactNode {
         {PRODUCT_COMMAND} mcp reset-project-choices`
       </Text>
     </>
-  )
+  );
 }

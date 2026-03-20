@@ -1,27 +1,27 @@
-import { Box, Text } from 'ink'
-import React from 'react'
-import { z } from 'zod'
-import { Tool } from '@tool'
+import { Box, Text } from "ink";
+import React from "react";
+import { z } from "zod";
+import { Tool } from "@tool";
 import {
   getPlanConversationKey,
   getPlanFilePath,
   readPlanFile,
-} from '@utils/plan/planMode'
-import { EXIT_DESCRIPTION, EXIT_PROMPT, EXIT_TOOL_NAME } from './prompt'
-import { getTheme } from '@utils/theme'
-import { BLACK_CIRCLE } from '@constants/figures'
+} from "@utils/plan/planMode";
+import { EXIT_DESCRIPTION, EXIT_PROMPT, EXIT_TOOL_NAME } from "./prompt";
+import { getTheme } from "@utils/theme";
+import { BLACK_CIRCLE } from "@constants/figures";
 
 function getExitPlanModePlanText(conversationKey?: string): string {
-  const { content } = readPlanFile(undefined, conversationKey)
+  const { content } = readPlanFile(undefined, conversationKey);
   return (
-    content || 'No plan found. Please write your plan to the plan file first.'
-  )
+    content || "No plan found. Please write your plan to the plan file first."
+  );
 }
 
 export function __getExitPlanModePlanTextForTests(
   conversationKey?: string,
 ): string {
-  return getExitPlanModePlanText(conversationKey)
+  return getExitPlanModePlanText(conversationKey);
 }
 
 const inputSchema = z
@@ -29,65 +29,65 @@ const inputSchema = z
     launchSwarm: z
       .boolean()
       .optional()
-      .describe('Whether to launch a swarm to implement the plan'),
+      .describe("Whether to launch a swarm to implement the plan"),
     teammateCount: z
       .number()
       .optional()
-      .describe('Number of teammates to spawn in the swarm'),
+      .describe("Number of teammates to spawn in the swarm"),
   })
-  .passthrough()
+  .passthrough();
 
 type Output = {
-  plan: string
-  isAgent: boolean
-  filePath?: string
-  launchSwarm?: boolean
-  teammateCount?: number
-}
+  plan: string;
+  isAgent: boolean;
+  filePath?: string;
+  launchSwarm?: boolean;
+  teammateCount?: number;
+};
 
 export const ExitPlanModeTool = {
   name: EXIT_TOOL_NAME,
   async description() {
-    return EXIT_DESCRIPTION
+    return EXIT_DESCRIPTION;
   },
   userFacingName() {
-    return ''
+    return "";
   },
   inputSchema,
   isReadOnly() {
-    return false
+    return false;
   },
   isConcurrencySafe() {
-    return true
+    return true;
   },
   async isEnabled() {
-    return true
+    return true;
   },
   needsPermissions() {
-    return true
+    return true;
   },
   requiresUserInteraction() {
-    return true
+    return true;
   },
   async prompt() {
-    return EXIT_PROMPT
+    return EXIT_PROMPT;
   },
   renderToolUseMessage() {
-    return ''
+    return "";
   },
   renderToolUseRejectedMessage(
     _input: z.infer<typeof inputSchema>,
     options: { conversationKey?: string } = {},
   ) {
-    const theme = getTheme()
+    const theme = getTheme();
     const conversationKey =
-      typeof options.conversationKey === 'string' &&
+      typeof options.conversationKey === "string" &&
       options.conversationKey.trim()
         ? options.conversationKey.trim()
-        : undefined
+        : undefined;
 
-    const { content } = readPlanFile(undefined, conversationKey)
-    const plan = getExitPlanModePlanText(conversationKey)
+    const { content } = readPlanFile(undefined, conversationKey);
+    const plan = getExitPlanModePlanText(conversationKey);
 
     return (
       <Box flexDirection="column" marginTop={1} width="100%">
@@ -109,13 +109,13 @@ export const ExitPlanModeTool = {
           </Box>
         </Box>
       </Box>
-    )
+    );
   },
   renderToolResultMessage(output: Output) {
-    const theme = getTheme()
+    const theme = getTheme();
     const planPath =
-      typeof output.filePath === 'string' ? output.filePath : null
-    const plan = output.plan || 'No plan found'
+      typeof output.filePath === "string" ? output.filePath : null;
+    const plan = output.plan || "No plan found";
 
     return (
       <Box flexDirection="column" marginTop={1} width="100%">
@@ -133,11 +133,11 @@ export const ExitPlanModeTool = {
           </Box>
         </Box>
       </Box>
-    )
+    );
   },
   renderResultForAssistant(output: Output) {
     if (output.isAgent) {
-      return 'User has approved the plan. There is nothing else needed from you now. Please respond with "ok"'
+      return 'User has approved the plan. There is nothing else needed from you now. Please respond with "ok"';
     }
 
     if (output.launchSwarm && output.teammateCount) {
@@ -182,7 +182,7 @@ Please follow these steps to launch the swarm:
 Your plan has been saved to: ${output.filePath}
 
 ## Approved Plan:
-${output.plan}`
+${output.plan}`;
     }
 
     return `User has approved your plan. You can now start coding. Start with updating your todo list if applicable
@@ -191,30 +191,30 @@ Your plan has been saved to: ${output.filePath}
 You can refer back to it if needed during implementation.
 
 ## Approved Plan:
-${output.plan}`
+${output.plan}`;
   },
   async *call(input: z.infer<typeof inputSchema>, context: any) {
-    const conversationKey = getPlanConversationKey(context)
-    const planFilePath = getPlanFilePath(context?.agentId, conversationKey)
-    const { content, exists } = readPlanFile(context?.agentId, conversationKey)
+    const conversationKey = getPlanConversationKey(context);
+    const planFilePath = getPlanFilePath(context?.agentId, conversationKey);
+    const { content, exists } = readPlanFile(context?.agentId, conversationKey);
     if (!exists) {
       throw new Error(
         `No plan file found at ${planFilePath}. Please write your plan to this file before calling ExitPlanMode.`,
-      )
+      );
     }
 
-    const isAgent = !!context?.agentId
+    const isAgent = !!context?.agentId;
     const output: Output = {
       plan: content,
       isAgent,
       filePath: planFilePath,
       launchSwarm: input.launchSwarm,
       teammateCount: input.teammateCount,
-    }
+    };
     yield {
-      type: 'result',
+      type: "result",
       data: output,
       resultForAssistant: this.renderResultForAssistant(output),
-    }
+    };
   },
-} satisfies Tool<typeof inputSchema, Output>
+} satisfies Tool<typeof inputSchema, Output>;

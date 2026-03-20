@@ -2,22 +2,22 @@
 // Based on official Kode patterns
 
 export interface RequestContext {
-  id: string
-  abortController: AbortController
-  startTime: number
-  isActive: boolean
-  type: 'query' | 'tool' | 'koding'
+  id: string;
+  abortController: AbortController;
+  startTime: number;
+  isActive: boolean;
+  type: "query" | "tool" | "koding";
 }
 
 export interface AbortBarrier {
-  requestId: string
-  checkAbort(): boolean
-  onAbort(callback: () => void): void
-  cleanup(): void
+  requestId: string;
+  checkAbort(): boolean;
+  onAbort(callback: () => void): void;
+  cleanup(): void;
 }
 
 export function createRequestContext(
-  type: RequestContext['type'] = 'query',
+  type: RequestContext["type"] = "query",
 ): RequestContext {
   return {
     id: crypto.randomUUID(),
@@ -25,13 +25,13 @@ export function createRequestContext(
     startTime: Date.now(),
     isActive: true,
     type,
-  }
+  };
 }
 
 export function createAbortBarrier(
   requestContext: RequestContext,
 ): AbortBarrier {
-  let cleanupCallbacks: (() => void)[] = []
+  let cleanupCallbacks: (() => void)[] = [];
 
   return {
     requestId: requestContext.id,
@@ -40,33 +40,33 @@ export function createAbortBarrier(
       // Only respond to aborts for THIS specific request
       return (
         requestContext.isActive && requestContext.abortController.signal.aborted
-      )
+      );
     },
 
     onAbort(callback: () => void): void {
       if (requestContext.isActive) {
         const abortHandler = () => {
           if (requestContext.isActive) {
-            callback()
+            callback();
           }
-        }
+        };
         requestContext.abortController.signal.addEventListener(
-          'abort',
+          "abort",
           abortHandler,
-        )
+        );
         cleanupCallbacks.push(() => {
           requestContext.abortController.signal.removeEventListener(
-            'abort',
+            "abort",
             abortHandler,
-          )
-        })
+          );
+        });
       }
     },
 
     cleanup(): void {
-      cleanupCallbacks.forEach(cleanup => cleanup())
-      cleanupCallbacks = []
-      requestContext.isActive = false
+      cleanupCallbacks.forEach((cleanup) => cleanup());
+      cleanupCallbacks = [];
+      requestContext.isActive = false;
     },
-  }
+  };
 }

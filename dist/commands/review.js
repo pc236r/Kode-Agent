@@ -1,22 +1,22 @@
-import { BashTool } from '@tools/BashTool/BashTool';
+import { BashTool } from "@tools/BashTool/BashTool";
 export default {
-    type: 'prompt',
-    name: 'review',
-    description: 'Review a pull request',
-    isEnabled: true,
-    isHidden: false,
-    progressMessage: 'reviewing pull request',
-    userFacingName() {
-        return 'review';
-    },
-    async getPromptForCommand(args) {
-        return [
-            {
-                role: 'user',
-                content: [
-                    {
-                        type: 'text',
-                        text: `
+  type: "prompt",
+  name: "review",
+  description: "Review a pull request",
+  isEnabled: true,
+  isHidden: false,
+  progressMessage: "reviewing pull request",
+  userFacingName() {
+    return "review";
+  },
+  async getPromptForCommand(args) {
+    return [
+      {
+        role: "user",
+        content: [
+          {
+            type: "text",
+            text: `
       You are an expert code reviewer. Follow these steps:
 
       1. If no PR number is provided in the args, use ${BashTool.name}("gh pr list") to show open PRs
@@ -39,10 +39,10 @@ export default {
 
       PR number: ${args}
     `,
-                    },
-                ],
-            },
-        ];
-    },
+          },
+        ],
+      },
+    ];
+  },
 };
 //# sourceMappingURL=review.js.map

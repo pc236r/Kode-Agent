@@ -1,66 +1,67 @@
-import React from 'react'
-import { Box, Text, useInput } from 'ink'
-import { getTheme } from '@utils/theme'
-import { MultiSelect } from '@inkjs/ui'
+import React from "react";
+import { Box, Text, useInput } from "ink";
+import { getTheme } from "@utils/theme";
+import { MultiSelect } from "@inkjs/ui";
 import {
   saveCurrentProjectConfig,
   getCurrentProjectConfig,
-} from '@utils/config'
-import { partition } from 'lodash-es'
-import { MCPServerDialogCopy } from './MCPServerDialogCopy'
-import { useExitOnCtrlCD } from '@hooks/useExitOnCtrlCD'
+} from "@utils/config";
+import { partition } from "lodash-es";
+import { MCPServerDialogCopy } from "./MCPServerDialogCopy";
+import { useExitOnCtrlCD } from "@hooks/useExitOnCtrlCD";
 
 type Props = {
-  serverNames: string[]
-  onDone(): void
-}
+  serverNames: string[];
+  onDone(): void;
+};
 
 export function MCPServerMultiselectDialog({
   serverNames,
   onDone,
 }: Props): React.ReactNode {
-  const theme = getTheme()
+  const theme = getTheme();
   function onSubmit(selectedServers: string[]) {
-    const config = getCurrentProjectConfig()
+    const config = getCurrentProjectConfig();
 
     if (!config.approvedMcprcServers) {
-      config.approvedMcprcServers = []
+      config.approvedMcprcServers = [];
     }
     if (!config.rejectedMcprcServers) {
-      config.rejectedMcprcServers = []
+      config.rejectedMcprcServers = [];
     }
 
-    const [approvedServers, rejectedServers] = partition(serverNames, server =>
-      selectedServers.includes(server),
-    )
+    const [approvedServers, rejectedServers] = partition(
+      serverNames,
+      (server) => selectedServers.includes(server),
+    );
 
-    config.approvedMcprcServers.push(...approvedServers)
-    config.rejectedMcprcServers.push(...rejectedServers)
+    config.approvedMcprcServers.push(...approvedServers);
+    config.rejectedMcprcServers.push(...rejectedServers);
 
-    saveCurrentProjectConfig(config)
-    onDone()
+    saveCurrentProjectConfig(config);
+    onDone();
   }
 
-  const exitState = useExitOnCtrlCD(() => process.exit())
+  const exitState = useExitOnCtrlCD(() => process.exit());
 
   useInput((_input, key) => {
     if (key.escape) {
-      const config = getCurrentProjectConfig()
+      const config = getCurrentProjectConfig();
       if (!config.rejectedMcprcServers) {
-        config.rejectedMcprcServers = []
+        config.rejectedMcprcServers = [];
       }
 
       for (const server of serverNames) {
         if (!config.rejectedMcprcServers.includes(server)) {
-          config.rejectedMcprcServers.push(server)
+          config.rejectedMcprcServers.push(server);
         }
       }
 
-      saveCurrentProjectConfig(config)
-      onDone()
-      return
+      saveCurrentProjectConfig(config);
+      onDone();
+      return;
     }
-  })
+  });
 
   return (
     <>
@@ -75,7 +76,7 @@ export function MCPServerMultiselectDialog({
           New MCP Servers Detected
         </Text>
         <Text>
-          This project contains an MCP config file (.mcp.json or .mcprc) with{' '}
+          This project contains an MCP config file (.mcp.json or .mcprc) with{" "}
           {serverNames.length} MCP servers that require your approval.
         </Text>
         <MCPServerDialogCopy />
@@ -83,7 +84,7 @@ export function MCPServerMultiselectDialog({
         <Text>Please select the servers you want to enable:</Text>
 
         <MultiSelect
-          options={serverNames.map(server => ({
+          options={serverNames.map((server) => ({
             label: server,
             value: server,
           }))}
@@ -101,5 +102,5 @@ export function MCPServerMultiselectDialog({
         </Text>
       </Box>
     </>
-  )
+  );
 }

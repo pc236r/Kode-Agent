@@ -1,6 +1,6 @@
-import type { Tool as ToolType, ToolUseContext } from '@tool'
-import type { AssistantMessage } from '@query'
-import type { ToolPermissionContextUpdate } from '@kode-types/toolPermissionContext'
+import type { Tool as ToolType, ToolUseContext } from "@tool";
+import type { AssistantMessage } from "@query";
+import type { ToolPermissionContextUpdate } from "@kode-types/toolPermissionContext";
 
 export type CanUseToolFn = (
   tool: ToolType,
@@ -10,9 +10,9 @@ export type CanUseToolFn = (
 ) => Promise<
   | { result: true }
   | {
-      result: false
-      message: string
-      shouldPromptUser?: boolean
-      suggestions?: ToolPermissionContextUpdate[]
+      result: false;
+      message: string;
+      shouldPromptUser?: boolean;
+      suggestions?: ToolPermissionContextUpdate[];
     }
->
+>;

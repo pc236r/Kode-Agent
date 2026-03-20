@@ -1,26 +1,26 @@
-import React, { useCallback } from 'react'
-import { hasPermissionsToUseTool } from '@permissions'
-import { BashTool, inputSchema } from '@tools/BashTool/BashTool'
-import { getCommandSubcommandPrefix } from '@utils/commands'
+import React, { useCallback } from "react";
+import { hasPermissionsToUseTool } from "@permissions";
+import { BashTool, inputSchema } from "@tools/BashTool/BashTool";
+import { getCommandSubcommandPrefix } from "@utils/commands";
 import {
   REJECT_MESSAGE,
   REJECT_MESSAGE_WITH_FEEDBACK_PREFIX,
-} from '@utils/messages'
-import { ToolUseConfirm } from '@components/permissions/PermissionRequest'
-import { AbortError } from '@utils/text/errors'
-import { logError } from '@utils/log'
-import type { CanUseToolFn } from '@kode-types/canUseTool'
+} from "@utils/messages";
+import { ToolUseConfirm } from "@components/permissions/PermissionRequest";
+import { AbortError } from "@utils/text/errors";
+import { logError } from "@utils/log";
+import type { CanUseToolFn } from "@kode-types/canUseTool";
 
-type SetState<T> = React.Dispatch<React.SetStateAction<T>>
+type SetState<T> = React.Dispatch<React.SetStateAction<T>>;
 
-export type { CanUseToolFn }
+export type { CanUseToolFn };
 
 function useCanUseTool(
   setToolUseConfirm: SetState<ToolUseConfirm | null>,
 ): CanUseToolFn {
   return useCallback<CanUseToolFn>(
     async (tool, input, toolUseContext, assistantMessage) => {
-      return new Promise(resolve => {
+      return new Promise((resolve) => {
         function logCancelledEvent() {}
 
         function resolveWithCancelledAndAbortAllToolCalls(message?: string) {
@@ -29,14 +29,14 @@ function useCanUseTool(
             message: message
               ? `${REJECT_MESSAGE_WITH_FEEDBACK_PREFIX}${message}`
               : REJECT_MESSAGE,
-          })
-          toolUseContext.abortController.abort()
+          });
+          toolUseContext.abortController.abort();
         }
 
         if (toolUseContext.abortController.signal.aborted) {
-          logCancelledEvent()
-          resolveWithCancelledAndAbortAllToolCalls()
-          return
+          logCancelledEvent();
+          resolveWithCancelledAndAbortAllToolCalls();
+          return;
         }
 
         return hasPermissionsToUseTool(
@@ -45,24 +45,24 @@ function useCanUseTool(
           toolUseContext,
           assistantMessage,
         )
-          .then(async result => {
+          .then(async (result) => {
             if (result.result === true) {
-              resolve({ result: true })
-              return
+              resolve({ result: true });
+              return;
             }
 
             const deniedResult = result as Extract<
               typeof result,
               { result: false }
-            >
+            >;
 
             if (deniedResult.shouldPromptUser === false) {
-              resolve({ result: false, message: deniedResult.message })
-              return
+              resolve({ result: false, message: deniedResult.message });
+              return;
             }
 
             const [description, commandPrefix] = await Promise.all([
-              typeof tool.description === 'function'
+              typeof tool.description === "function"
                 ? tool.description(input as never)
                 : Promise.resolve(tool.description ?? `Tool: ${tool.name}`),
               tool === BashTool
@@ -71,12 +71,12 @@ function useCanUseTool(
                     toolUseContext.abortController.signal,
                   )
                 : Promise.resolve(null),
-            ])
+            ]);
 
             if (toolUseContext.abortController.signal.aborted) {
-              logCancelledEvent()
-              resolveWithCancelledAndAbortAllToolCalls()
-              return
+              logCancelledEvent();
+              resolveWithCancelledAndAbortAllToolCalls();
+              return;
             }
 
             setToolUseConfirm({
@@ -89,32 +89,32 @@ function useCanUseTool(
               suggestions: deniedResult.suggestions,
               riskScore: null,
               onAbort() {
-                logCancelledEvent()
-                resolveWithCancelledAndAbortAllToolCalls()
+                logCancelledEvent();
+                resolveWithCancelledAndAbortAllToolCalls();
               },
               onAllow(type) {
-                if (type === 'permanent') {
+                if (type === "permanent") {
                 } else {
                 }
-                resolve({ result: true })
+                resolve({ result: true });
               },
               onReject(rejectionMessage) {
-                resolveWithCancelledAndAbortAllToolCalls(rejectionMessage)
+                resolveWithCancelledAndAbortAllToolCalls(rejectionMessage);
               },
-            })
+            });
           })
-          .catch(error => {
+          .catch((error) => {
             if (error instanceof AbortError) {
-              logCancelledEvent()
-              resolveWithCancelledAndAbortAllToolCalls()
+              logCancelledEvent();
+              resolveWithCancelledAndAbortAllToolCalls();
             } else {
-              logError(error)
+              logError(error);
             }
-          })
-      })
+          });
+      });
     },
     [setToolUseConfirm],
-  )
+  );
 }
 
-export default useCanUseTool
+export default useCanUseTool;

@@ -1,4 +1,4 @@
-export const TOOL_NAME_FOR_PROMPT = 'Grep';
+export const TOOL_NAME_FOR_PROMPT = "Grep";
 export const DESCRIPTION = `A powerful search tool built on ripgrep
 
   Usage:

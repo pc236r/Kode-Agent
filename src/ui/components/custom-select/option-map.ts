@@ -1,20 +1,20 @@
-import { type Option } from '@inkjs/ui'
-import { optionHeaderKey, type OptionHeader } from './select'
+import { type Option } from "@inkjs/ui";
+import { optionHeaderKey, type OptionHeader } from "./select";
 
 type OptionMapItem = (Option | OptionHeader) & {
-  previous: OptionMapItem | undefined
-  next: OptionMapItem | undefined
-  index: number
-}
+  previous: OptionMapItem | undefined;
+  next: OptionMapItem | undefined;
+  index: number;
+};
 
 export default class OptionMap extends Map<string, OptionMapItem> {
-  readonly first: OptionMapItem | undefined
+  readonly first: OptionMapItem | undefined;
 
   constructor(options: (Option | OptionHeader)[]) {
-    const items: Array<[string, OptionMapItem]> = []
-    let firstItem: OptionMapItem | undefined
-    let previous: OptionMapItem | undefined
-    let index = 0
+    const items: Array<[string, OptionMapItem]> = [];
+    let firstItem: OptionMapItem | undefined;
+    let previous: OptionMapItem | undefined;
+    let index = 0;
 
     for (const option of options) {
       const item = {
@@ -22,21 +22,21 @@ export default class OptionMap extends Map<string, OptionMapItem> {
         previous,
         next: undefined,
         index,
-      }
+      };
 
       if (previous) {
-        previous.next = item
+        previous.next = item;
       }
 
-      firstItem ||= item
+      firstItem ||= item;
 
-      const key = 'value' in option ? option.value : optionHeaderKey(option)
-      items.push([key, item])
-      index++
-      previous = item
+      const key = "value" in option ? option.value : optionHeaderKey(option);
+      items.push([key, item]);
+      index++;
+      previous = item;
     }
 
-    super(items)
-    this.first = firstItem
+    super(items);
+    this.first = firstItem;
   }
 }

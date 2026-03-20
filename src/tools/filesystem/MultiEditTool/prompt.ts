@@ -1,4 +1,4 @@
-import { NotebookEditTool } from '@tools/NotebookEditTool/NotebookEditTool'
+import { NotebookEditTool } from "@tools/NotebookEditTool/NotebookEditTool";
 
 export const DESCRIPTION = `This is a tool for making multiple edits to a single file in one operation. It is built on top of the Edit tool and allows you to perform multiple find-and-replace operations efficiently. Prefer this tool over the Edit tool when you need to make multiple edits to the same file.
 
@@ -40,6 +40,6 @@ When making edits:
 If you want to create a new file, use:
 - A new file path, including dir name if needed
 - First edit: empty old_string and the new file's contents as new_string
-- Subsequent edits: normal edit operations on the created content`
+- Subsequent edits: normal edit operations on the created content`;
 
-export const PROMPT = DESCRIPTION
+export const PROMPT = DESCRIPTION;

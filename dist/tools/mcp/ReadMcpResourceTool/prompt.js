@@ -1,4 +1,4 @@
-export const TOOL_NAME = 'ReadMcpResourceTool';
+export const TOOL_NAME = "ReadMcpResourceTool";
 export const DESCRIPTION = `Reads a specific resource from an MCP server.
 - server: The name of the MCP server to read from
 - uri: The URI of the resource to read

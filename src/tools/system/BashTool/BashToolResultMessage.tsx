@@ -1,16 +1,16 @@
-import { Box, Text } from 'ink'
-import { OutputLine } from './OutputLine'
-import React from 'react'
-import { getTheme } from '@utils/theme'
-import { Out as BashOut } from './BashTool'
+import { Box, Text } from "ink";
+import { OutputLine } from "./OutputLine";
+import React from "react";
+import { getTheme } from "@utils/theme";
+import { Out as BashOut } from "./BashTool";
 
 type Props = {
-  content: Omit<BashOut, 'interrupted'>
-  verbose: boolean
-}
+  content: Omit<BashOut, "interrupted">;
+  verbose: boolean;
+};
 
 function BashToolResultMessage({ content, verbose }: Props): React.JSX.Element {
-  const { stdout, stdoutLines, stderr, stderrLines, bashId } = content
+  const { stdout, stdoutLines, stderr, stderrLines, bashId } = content;
 
   return (
     <Box flexDirection="column">
@@ -22,10 +22,10 @@ function BashToolResultMessage({ content, verbose }: Props): React.JSX.Element {
           </Text>
         </Box>
       ) : null}
-      {stdout !== '' ? (
+      {stdout !== "" ? (
         <OutputLine content={stdout} lines={stdoutLines} verbose={verbose} />
       ) : null}
-      {stderr !== '' ? (
+      {stderr !== "" ? (
         <OutputLine
           content={stderr}
           lines={stderrLines}
@@ -33,14 +33,14 @@ function BashToolResultMessage({ content, verbose }: Props): React.JSX.Element {
           isError
         />
       ) : null}
-      {stdout === '' && stderr === '' ? (
+      {stdout === "" && stderr === "" ? (
         <Box flexDirection="row">
           <Text>&nbsp;&nbsp;⎿ &nbsp;</Text>
           <Text color={getTheme().secondaryText}>(No content)</Text>
         </Box>
       ) : null}
     </Box>
-  )
+  );
 }
 
-export default BashToolResultMessage
+export default BashToolResultMessage;

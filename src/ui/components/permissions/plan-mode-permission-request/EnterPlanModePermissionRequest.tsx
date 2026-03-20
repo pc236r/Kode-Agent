@@ -1,29 +1,29 @@
-import { Box, Text, useInput } from 'ink'
-import React from 'react'
-import { Select } from '@components/custom-select/select'
-import { PermissionRequestTitle } from '@components/permissions/PermissionRequestTitle'
-import type { ToolUseConfirm } from '@components/permissions/PermissionRequest'
-import { getTheme } from '@utils/theme'
-import { usePermissionContext } from '@context/PermissionContext'
+import { Box, Text, useInput } from "ink";
+import React from "react";
+import { Select } from "@components/custom-select/select";
+import { PermissionRequestTitle } from "@components/permissions/PermissionRequestTitle";
+import type { ToolUseConfirm } from "@components/permissions/PermissionRequest";
+import { getTheme } from "@utils/theme";
+import { usePermissionContext } from "@context/PermissionContext";
 
 type Props = {
-  toolUseConfirm: ToolUseConfirm
-  onDone(): void
-}
+  toolUseConfirm: ToolUseConfirm;
+  onDone(): void;
+};
 
 export function EnterPlanModePermissionRequest({
   toolUseConfirm,
   onDone,
 }: Props): React.ReactNode {
-  const theme = getTheme()
-  const { setMode } = usePermissionContext()
+  const theme = getTheme();
+  const { setMode } = usePermissionContext();
 
   useInput((_input, key) => {
     if (key.escape) {
-      toolUseConfirm.onReject()
-      onDone()
+      toolUseConfirm.onReject();
+      onDone();
     }
-  })
+  });
 
   return (
     <Box
@@ -62,22 +62,22 @@ export function EnterPlanModePermissionRequest({
         <Text>Would you like to proceed?</Text>
         <Select
           options={[
-            { label: 'Yes, enter plan mode', value: 'yes' },
-            { label: 'No, start implementing now', value: 'no' },
+            { label: "Yes, enter plan mode", value: "yes" },
+            { label: "No, start implementing now", value: "no" },
           ]}
-          onChange={value => {
-            if (value === 'yes') {
-              setMode('plan')
-              toolUseConfirm.onAllow('temporary')
-              onDone()
-              return
+          onChange={(value) => {
+            if (value === "yes") {
+              setMode("plan");
+              toolUseConfirm.onAllow("temporary");
+              onDone();
+              return;
             }
 
-            toolUseConfirm.onReject()
-            onDone()
+            toolUseConfirm.onReject();
+            onDone();
           }}
         />
       </Box>
     </Box>
-  )
+  );
 }

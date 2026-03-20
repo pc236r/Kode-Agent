@@ -1,112 +1,112 @@
-import { Box, Text, useInput } from 'ink'
-import { sample } from 'lodash-es'
-import * as React from 'react'
-import { type Message } from '@query'
-import { processUserInput } from '@utils/messages'
-import { useArrowKeyHistory } from '@hooks/useArrowKeyHistory'
-import { useDoublePress } from '@hooks/useDoublePress'
-import { useUnifiedCompletion } from '@hooks/useUnifiedCompletion'
-import { addToHistory } from '@history'
-import TextInput from './TextInput'
-import { memo, useCallback, useEffect, useMemo, useState } from 'react'
-import { countTokens } from '@utils/model/tokens'
-import { SentryErrorBoundary } from './SentryErrorBoundary'
-import type { Command } from '@commands'
-import type { SetToolJSXFn, Tool } from '@tool'
-import { TokenWarning, WARNING_THRESHOLD } from './TokenWarning'
-import { useTerminalSize } from '@hooks/useTerminalSize'
-import { getTheme } from '@utils/theme'
-import { getModelManager, reloadModelManager } from '@utils/model'
-import { saveGlobalConfig } from '@utils/config'
-import { setTerminalTitle } from '@utils/terminal'
-import { launchExternalEditor } from '@utils/system/externalEditor'
+import { Box, Text, useInput } from "ink";
+import { sample } from "lodash-es";
+import * as React from "react";
+import { type Message } from "@query";
+import { processUserInput } from "@utils/messages";
+import { useArrowKeyHistory } from "@hooks/useArrowKeyHistory";
+import { useDoublePress } from "@hooks/useDoublePress";
+import { useUnifiedCompletion } from "@hooks/useUnifiedCompletion";
+import { addToHistory } from "@history";
+import TextInput from "./TextInput";
+import { memo, useCallback, useEffect, useMemo, useState } from "react";
+import { countTokens } from "@utils/model/tokens";
+import { SentryErrorBoundary } from "./SentryErrorBoundary";
+import type { Command } from "@commands";
+import type { SetToolJSXFn, Tool } from "@tool";
+import { TokenWarning, WARNING_THRESHOLD } from "./TokenWarning";
+import { useTerminalSize } from "@hooks/useTerminalSize";
+import { getTheme } from "@utils/theme";
+import { getModelManager, reloadModelManager } from "@utils/model";
+import { saveGlobalConfig } from "@utils/config";
+import { setTerminalTitle } from "@utils/terminal";
+import { launchExternalEditor } from "@utils/system/externalEditor";
 import {
   countLineBreaks,
   normalizeLineEndings,
   shouldTreatAsSpecialPaste,
-} from '@utils/terminal/paste'
-import { handleHashCommand } from '@utils/commands/hashCommand'
-import { logError } from '@utils/log'
-import { usePermissionContext } from '@context/PermissionContext'
-import { getPermissionModeCycleShortcut } from '@utils/terminal/permissionModeCycleShortcut'
-import { getCwd } from '@utils/state'
-import { CompactModeIndicator } from '@components/ModeIndicator'
-import { getPromptInputSpecialKeyAction } from '@utils/terminal/promptInputSpecialKey'
-import { logStartupProfile } from '@utils/config/startupProfile'
-import { useStatusLine } from '@hooks/useStatusLine'
+} from "@utils/terminal/paste";
+import { handleHashCommand } from "@utils/commands/hashCommand";
+import { logError } from "@utils/log";
+import { usePermissionContext } from "@context/PermissionContext";
+import { getPermissionModeCycleShortcut } from "@utils/terminal/permissionModeCycleShortcut";
+import { getCwd } from "@utils/state";
+import { CompactModeIndicator } from "@components/ModeIndicator";
+import { getPromptInputSpecialKeyAction } from "@utils/terminal/promptInputSpecialKey";
+import { logStartupProfile } from "@utils/config/startupProfile";
+import { useStatusLine } from "@hooks/useStatusLine";
 
 async function interpretHashCommand(input: string): Promise<string> {
   try {
-    const { queryQuick } = await import('@services/llm')
+    const { queryQuick } = await import("@services/llm");
 
     const systemPrompt = [
       "You're helping the user structure notes that will be added to their KODING.md file.",
       "Format the user's input into a well-structured note that will be useful for later reference.",
-      'Add appropriate markdown formatting, headings, bullet points, or other structural elements as needed.',
-      'The goal is to transform the raw note into something that will be more useful when reviewed later.',
-      'You should keep the original meaning but make the structure clear.',
-    ]
+      "Add appropriate markdown formatting, headings, bullet points, or other structural elements as needed.",
+      "The goal is to transform the raw note into something that will be more useful when reviewed later.",
+      "You should keep the original meaning but make the structure clear.",
+    ];
 
     const result = await queryQuick({
       systemPrompt,
       userPrompt: `Transform this note for KODING.md: ${input}`,
-    })
+    });
 
-    if (typeof result.message.content === 'string') {
-      return result.message.content
+    if (typeof result.message.content === "string") {
+      return result.message.content;
     } else if (Array.isArray(result.message.content)) {
       return result.message.content
-        .filter(block => block.type === 'text')
-        .map(block => (block.type === 'text' ? block.text : ''))
-        .join('\n')
+        .filter((block) => block.type === "text")
+        .map((block) => (block.type === "text" ? block.text : ""))
+        .join("\n");
     }
 
-    return `# ${input}\n\n_Added on ${new Date().toLocaleString()}_`
+    return `# ${input}\n\n_Added on ${new Date().toLocaleString()}_`;
   } catch (e) {
-    return `# ${input}\n\n_Added on ${new Date().toLocaleString()}_`
+    return `# ${input}\n\n_Added on ${new Date().toLocaleString()}_`;
   }
 }
 
 type Props = {
-  commands: Command[]
-  forkNumber: number
-  messageLogName: string
-  disableSlashCommands?: boolean
-  isDisabled: boolean
-  isLoading: boolean
+  commands: Command[];
+  forkNumber: number;
+  messageLogName: string;
+  disableSlashCommands?: boolean;
+  isDisabled: boolean;
+  isLoading: boolean;
   onQuery: (
     newMessages: Message[],
     abortController?: AbortController,
-  ) => Promise<void>
-  debug: boolean
-  verbose: boolean
-  messages: Message[]
-  setToolJSX: SetToolJSXFn
-  tools: Tool[]
-  input: string
-  onInputChange: (value: string) => void
-  mode: 'bash' | 'prompt' | 'koding'
-  onModeChange: (mode: 'bash' | 'prompt' | 'koding') => void
-  submitCount: number
-  onSubmitCountChange: (updater: (prev: number) => number) => void
-  setIsLoading: (isLoading: boolean) => void
-  setAbortController: (abortController: AbortController | null) => void
-  onShowMessageSelector: () => void
+  ) => Promise<void>;
+  debug: boolean;
+  verbose: boolean;
+  messages: Message[];
+  setToolJSX: SetToolJSXFn;
+  tools: Tool[];
+  input: string;
+  onInputChange: (value: string) => void;
+  mode: "bash" | "prompt" | "koding";
+  onModeChange: (mode: "bash" | "prompt" | "koding") => void;
+  submitCount: number;
+  onSubmitCountChange: (updater: (prev: number) => number) => void;
+  setIsLoading: (isLoading: boolean) => void;
+  setAbortController: (abortController: AbortController | null) => void;
+  onShowMessageSelector: () => void;
   setForkConvoWithMessagesOnTheNextRender: (
     forkConvoWithMessages: Message[],
-  ) => void
-  readFileTimestamps: { [filename: string]: number }
-  abortController: AbortController | null
-  onModelChange?: () => void
-  uiRefreshCounter?: number
-}
+  ) => void;
+  readFileTimestamps: { [filename: string]: number };
+  abortController: AbortController | null;
+  onModelChange?: () => void;
+  uiRefreshCounter?: number;
+};
 
-type PastedTextSegment = { placeholder: string; text: string }
+type PastedTextSegment = { placeholder: string; text: string };
 type PastedImageAttachment = {
-  placeholder: string
-  data: string
-  mediaType: string
-}
+  placeholder: string;
+  data: string;
+  mediaType: string;
+};
 function PromptInput({
   commands,
   forkNumber,
@@ -136,48 +136,49 @@ function PromptInput({
 }: Props): React.ReactNode {
   useEffect(() => {
     if (!isDisabled && !isLoading) {
-      logStartupProfile('prompt_ready')
+      logStartupProfile("prompt_ready");
     }
-  }, [isDisabled, isLoading])
+  }, [isDisabled, isLoading]);
 
   const [exitMessage, setExitMessage] = useState<{
-    show: boolean
-    key?: string
-  }>({ show: false })
-  const [rewindMessagePending, setRewindMessagePending] = useState(false)
+    show: boolean;
+    key?: string;
+  }>({ show: false });
+  const [rewindMessagePending, setRewindMessagePending] = useState(false);
   const [message, setMessage] = useState<{ show: boolean; text?: string }>({
     show: false,
-  })
+  });
   const [modelSwitchMessage, setModelSwitchMessage] = useState<{
-    show: boolean
-    text?: string
+    show: boolean;
+    text?: string;
   }>({
     show: false,
-  })
-  const [placeholder, setPlaceholder] = useState('')
-  const [cursorOffset, setCursorOffset] = useState<number>(input.length)
-  const [pastedTexts, setPastedTexts] = useState<PastedTextSegment[]>([])
-  const [pastedImages, setPastedImages] = useState<PastedImageAttachment[]>([])
-  const [isEditingExternally, setIsEditingExternally] = useState(false)
-  const [currentPwd, setCurrentPwd] = useState<string>(process.cwd())
-  const pastedTextCounter = React.useRef(1)
-  const pastedImageCounter = React.useRef(1)
+  });
+  const [placeholder, setPlaceholder] = useState("");
+  const [cursorOffset, setCursorOffset] = useState<number>(input.length);
+  const [pastedTexts, setPastedTexts] = useState<PastedTextSegment[]>([]);
+  const [pastedImages, setPastedImages] = useState<PastedImageAttachment[]>([]);
+  const [isEditingExternally, setIsEditingExternally] = useState(false);
+  const [currentPwd, setCurrentPwd] = useState<string>(process.cwd());
+  const pastedTextCounter = React.useRef(1);
+  const pastedImageCounter = React.useRef(1);
 
   const { cycleMode, currentMode, toolPermissionContext } =
-    usePermissionContext()
-  const modeCycleShortcut = useMemo(() => getPermissionModeCycleShortcut(), [])
-  const showQuickModelSwitchShortcut = modeCycleShortcut.displayText !== 'alt+m'
+    usePermissionContext();
+  const modeCycleShortcut = useMemo(() => getPermissionModeCycleShortcut(), []);
+  const showQuickModelSwitchShortcut =
+    modeCycleShortcut.displayText !== "alt+m";
 
   const handleRewindConversation = useDoublePress(setRewindMessagePending, () =>
     onShowMessageSelector(),
-  )
+  );
 
-  const { columns, rows } = useTerminalSize()
+  const { columns, rows } = useTerminalSize();
 
   const commandWidth = useMemo(
-    () => Math.max(...commands.map(cmd => cmd.userFacingName().length)) + 5,
+    () => Math.max(...commands.map((cmd) => cmd.userFacingName().length)) + 5,
     [commands],
-  )
+  );
 
   const {
     suggestions,
@@ -192,23 +193,23 @@ function PromptInput({
     commands,
     disableSlashCommands,
     onSubmit,
-  })
+  });
 
-  const theme = getTheme()
-  const statusLine = useStatusLine()
+  const theme = getTheme();
+  const statusLine = useStatusLine();
 
   const renderedSuggestions = useMemo(() => {
-    if (suggestions.length === 0) return null
+    if (suggestions.length === 0) return null;
 
     return suggestions.map((suggestion, index) => {
-      const isSelected = index === selectedIndex
-      const isAgent = suggestion.type === 'agent'
+      const isSelected = index === selectedIndex;
+      const isAgent = suggestion.type === "agent";
 
       const displayColor = isSelected
         ? theme.suggestion
         : isAgent && suggestion.metadata?.color
           ? suggestion.metadata.color
-          : undefined
+          : undefined;
 
       return (
         <Box
@@ -216,97 +217,97 @@ function PromptInput({
           flexDirection="row"
         >
           <Text color={displayColor} dimColor={!isSelected && !displayColor}>
-            {isSelected ? '◆ ' : '  '}
+            {isSelected ? "◆ " : "  "}
             {suggestion.displayValue}
           </Text>
         </Box>
-      )
-    })
-  }, [suggestions, selectedIndex, theme.suggestion])
+      );
+    });
+  }, [suggestions, selectedIndex, theme.suggestion]);
 
   const onChange = useCallback(
     (value: string) => {
-      if (value.startsWith('!')) {
-        onModeChange('bash')
-        return
+      if (value.startsWith("!")) {
+        onModeChange("bash");
+        return;
       }
-      if (value.startsWith('#')) {
-        onModeChange('koding')
-        return
+      if (value.startsWith("#")) {
+        onModeChange("koding");
+        return;
       }
-      onInputChange(value)
+      onInputChange(value);
     },
     [onModeChange, onInputChange],
-  )
+  );
 
   const handleQuickModelSwitch = useCallback(async () => {
-    const modelManager = getModelManager()
-    const currentTokens = countTokens(messages)
+    const modelManager = getModelManager();
+    const currentTokens = countTokens(messages);
 
-    const debugInfo = modelManager.getModelSwitchingDebugInfo()
+    const debugInfo = modelManager.getModelSwitchingDebugInfo();
 
-    const switchResult = modelManager.switchToNextModel(currentTokens)
+    const switchResult = modelManager.switchToNextModel(currentTokens);
 
     if (switchResult.success && switchResult.modelName) {
-      onModelChange?.()
-      onSubmitCountChange(prev => prev + 1)
+      onModelChange?.();
+      onSubmitCountChange((prev) => prev + 1);
       setModelSwitchMessage({
         show: true,
         text:
           switchResult.message || `✅ Switched to ${switchResult.modelName}`,
-      })
-      setTimeout(() => setModelSwitchMessage({ show: false }), 3000)
+      });
+      setTimeout(() => setModelSwitchMessage({ show: false }), 3000);
     } else if (switchResult.blocked && switchResult.message) {
       setModelSwitchMessage({
         show: true,
         text: switchResult.message,
-      })
-      setTimeout(() => setModelSwitchMessage({ show: false }), 5000)
+      });
+      setTimeout(() => setModelSwitchMessage({ show: false }), 5000);
     } else {
-      let errorMessage = switchResult.message
+      let errorMessage = switchResult.message;
 
       if (!errorMessage) {
         if (debugInfo.totalModels === 0) {
-          errorMessage = '❌ No models configured. Use /model to add models.'
+          errorMessage = "❌ No models configured. Use /model to add models.";
         } else if (debugInfo.activeModels === 0) {
-          errorMessage = `❌ No active models (${debugInfo.totalModels} total, all inactive). Use /model to activate models.`
+          errorMessage = `❌ No active models (${debugInfo.totalModels} total, all inactive). Use /model to activate models.`;
         } else if (debugInfo.activeModels === 1) {
           const allModelNames = debugInfo.availableModels
-            .map(m => `${m.name}${m.isActive ? '' : ' (inactive)'}`)
-            .join(', ')
-          errorMessage = `⚠️ Only 1 active model out of ${debugInfo.totalModels} total models: ${allModelNames}. ALL configured models will be activated for switching.`
+            .map((m) => `${m.name}${m.isActive ? "" : " (inactive)"}`)
+            .join(", ");
+          errorMessage = `⚠️ Only 1 active model out of ${debugInfo.totalModels} total models: ${allModelNames}. ALL configured models will be activated for switching.`;
         } else {
-          errorMessage = `❌ Model switching failed (${debugInfo.activeModels} active, ${debugInfo.totalModels} total models available)`
+          errorMessage = `❌ Model switching failed (${debugInfo.activeModels} active, ${debugInfo.totalModels} total models available)`;
         }
       }
 
       setModelSwitchMessage({
         show: true,
         text: errorMessage,
-      })
-      setTimeout(() => setModelSwitchMessage({ show: false }), 6000)
+      });
+      setTimeout(() => setModelSwitchMessage({ show: false }), 6000);
     }
-  }, [onSubmitCountChange, messages])
+  }, [onSubmitCountChange, messages]);
 
   const { resetHistory, onHistoryUp, onHistoryDown } = useArrowKeyHistory(
-    (value: string, mode: 'bash' | 'prompt' | 'koding') => {
-      onChange(value)
-      onModeChange(mode)
+    (value: string, mode: "bash" | "prompt" | "koding") => {
+      onChange(value);
+      onModeChange(mode);
     },
     input,
-  )
+  );
 
   const handleHistoryUp = () => {
     if (!completionActive) {
-      onHistoryUp()
+      onHistoryUp();
     }
-  }
+  };
 
   const handleHistoryDown = () => {
     if (!completionActive) {
-      onHistoryDown()
+      onHistoryDown();
     }
-  }
+  };
 
   async function onSubmit(input: string, isSubmittingSlashCommand = false) {
     if (
@@ -314,46 +315,47 @@ function PromptInput({
       completionActive &&
       suggestions.length > 0
     ) {
-      return
+      return;
     }
 
     if (
-      (mode === 'koding' || input.startsWith('#')) &&
+      (mode === "koding" || input.startsWith("#")) &&
       input.match(/^(#\s*)?(put|create|generate|write|give|provide)/i)
     ) {
       try {
-        const originalInput = input
+        const originalInput = input;
 
-        const cleanInput = mode === 'koding' ? input : input.substring(1).trim()
+        const cleanInput =
+          mode === "koding" ? input : input.substring(1).trim();
 
-        addToHistory(mode === 'koding' ? `#${input}` : input)
-        onInputChange('')
+        addToHistory(mode === "koding" ? `#${input}` : input);
+        onInputChange("");
 
         const kodingContext =
-          'The user is using Koding mode. Format your response as a comprehensive, well-structured document suitable for adding to AGENTS.md. Use proper markdown formatting with headings, lists, code blocks, etc. The response should be complete and ready to add to AGENTS.md documentation.'
+          "The user is using Koding mode. Format your response as a comprehensive, well-structured document suitable for adding to AGENTS.md. Use proper markdown formatting with headings, lists, code blocks, etc. The response should be complete and ready to add to AGENTS.md documentation.";
 
-        onModeChange('prompt')
+        onModeChange("prompt");
 
         if (abortController) {
-          abortController.abort()
+          abortController.abort();
         }
-        setIsLoading(false)
-        await new Promise(resolve => setTimeout(resolve, 0))
+        setIsLoading(false);
+        await new Promise((resolve) => setTimeout(resolve, 0));
 
-        setIsLoading(true)
+        setIsLoading(true);
 
-        let finalInput = cleanInput
+        let finalInput = cleanInput;
         for (const { placeholder, text } of pastedTexts) {
-          if (!finalInput.includes(placeholder)) continue
-          finalInput = finalInput.replace(placeholder, text)
+          if (!finalInput.includes(placeholder)) continue;
+          finalInput = finalInput.replace(placeholder, text);
         }
-        const imagesForMessage = pastedImages
-        setPastedImages([])
-        setPastedTexts([])
+        const imagesForMessage = pastedImages;
+        setPastedImages([]);
+        setPastedTexts([]);
 
         const messages = await processUserInput(
           finalInput,
-          'prompt',
+          "prompt",
           setToolJSX,
           {
             options: {
@@ -374,65 +376,65 @@ function PromptInput({
             setForkConvoWithMessagesOnTheNextRender,
           },
           imagesForMessage.length > 0 ? imagesForMessage : null,
-        )
+        );
 
         if (messages.length) {
-          await onQuery(messages)
+          await onQuery(messages);
         }
 
-        return
+        return;
       } catch (e) {
-        logError(e)
+        logError(e);
       }
-    } else if (mode === 'koding' || input.startsWith('#')) {
+    } else if (mode === "koding" || input.startsWith("#")) {
       try {
         const contentToInterpret =
-          mode === 'koding' && !input.startsWith('#')
+          mode === "koding" && !input.startsWith("#")
             ? input.trim()
-            : input.substring(1).trim()
+            : input.substring(1).trim();
 
-        const interpreted = await interpretHashCommand(contentToInterpret)
-        handleHashCommand(interpreted)
+        const interpreted = await interpretHashCommand(contentToInterpret);
+        handleHashCommand(interpreted);
       } catch (e) {
-        logError(e)
+        logError(e);
       }
-      onInputChange('')
-      addToHistory(mode === 'koding' ? `#${input}` : input)
-      onModeChange('prompt')
-      return
+      onInputChange("");
+      addToHistory(mode === "koding" ? `#${input}` : input);
+      onModeChange("prompt");
+      return;
     }
-    if (input === '') {
-      return
+    if (input === "") {
+      return;
     }
     if (isDisabled) {
-      return
+      return;
     }
     if (isLoading) {
-      return
+      return;
     }
 
-    if (['exit', 'quit', ':q', ':q!', ':wq', ':wq!'].includes(input.trim())) {
-      exit()
+    if (["exit", "quit", ":q", ":q!", ":wq", ":wq!"].includes(input.trim())) {
+      exit();
     }
 
-    let finalInput = input
+    let finalInput = input;
     for (const { placeholder, text } of pastedTexts) {
-      if (!finalInput.includes(placeholder)) continue
-      finalInput = finalInput.replace(placeholder, text)
+      if (!finalInput.includes(placeholder)) continue;
+      finalInput = finalInput.replace(placeholder, text);
     }
-    onInputChange('')
-    if (mode !== 'bash') {
-      onModeChange('prompt')
+    onInputChange("");
+    if (mode !== "bash") {
+      onModeChange("prompt");
     }
-    const imagesForMessage = pastedImages
-    setPastedImages([])
-    setPastedTexts([])
-    onSubmitCountChange(_ => _ + 1)
+    const imagesForMessage = pastedImages;
+    setPastedImages([]);
+    setPastedTexts([]);
+    onSubmitCountChange((_) => _ + 1);
 
-    setIsLoading(true)
+    setIsLoading(true);
 
-    const newAbortController = new AbortController()
-    setAbortController(newAbortController)
+    const newAbortController = new AbortController();
+    setAbortController(newAbortController);
 
     const messages = await processUserInput(
       finalInput,
@@ -456,130 +458,132 @@ function PromptInput({
         setForkConvoWithMessagesOnTheNextRender,
       },
       imagesForMessage.length > 0 ? imagesForMessage : null,
-    )
+    );
 
     if (messages.length) {
-      if (mode === 'bash') {
+      if (mode === "bash") {
         onQuery(messages, newAbortController).then(async () => {
-          const { getCwd } = await import('@utils/state')
-          setCurrentPwd(getCwd())
-        })
+          const { getCwd } = await import("@utils/state");
+          setCurrentPwd(getCwd());
+        });
       } else {
-        onQuery(messages, newAbortController)
+        onQuery(messages, newAbortController);
       }
     } else {
-      addToHistory(input)
-      resetHistory()
-      return
+      addToHistory(input);
+      resetHistory();
+      return;
     }
 
     for (const message of messages) {
-      if (message.type === 'user') {
-        const inputToAdd = mode === 'bash' ? `!${input}` : input
-        addToHistory(inputToAdd)
-        resetHistory()
+      if (message.type === "user") {
+        const inputToAdd = mode === "bash" ? `!${input}` : input;
+        addToHistory(inputToAdd);
+        resetHistory();
       }
     }
   }
 
   function onImagePaste(image: string): string {
-    onModeChange('prompt')
-    const placeholder = `[Image #${pastedImageCounter.current}]`
-    pastedImageCounter.current += 1
-    setPastedImages(prev => [
+    onModeChange("prompt");
+    const placeholder = `[Image #${pastedImageCounter.current}]`;
+    pastedImageCounter.current += 1;
+    setPastedImages((prev) => [
       ...prev,
-      { placeholder, data: image, mediaType: 'image/png' },
-    ])
-    return placeholder
+      { placeholder, data: image, mediaType: "image/png" },
+    ]);
+    return placeholder;
   }
 
   function onTextPaste(rawText: string) {
-    const text = normalizeLineEndings(rawText)
-    const newlineCount = countLineBreaks(text)
+    const text = normalizeLineEndings(rawText);
+    const newlineCount = countLineBreaks(text);
 
     if (!shouldTreatAsSpecialPaste(text, { terminalRows: rows })) {
       const newInput =
-        input.slice(0, cursorOffset) + text + input.slice(cursorOffset)
-      onInputChange(newInput)
-      setCursorOffset(cursorOffset + text.length)
-      return
+        input.slice(0, cursorOffset) + text + input.slice(cursorOffset);
+      onInputChange(newInput);
+      setCursorOffset(cursorOffset + text.length);
+      return;
     }
 
-    const pasteId = pastedTextCounter.current
-    pastedTextCounter.current += 1
+    const pasteId = pastedTextCounter.current;
+    pastedTextCounter.current += 1;
     const pastedPrompt =
       newlineCount === 0
         ? `[Pasted text #${pasteId}]`
-        : `[Pasted text #${pasteId} +${newlineCount} lines]`
+        : `[Pasted text #${pasteId} +${newlineCount} lines]`;
 
     const newInput =
-      input.slice(0, cursorOffset) + pastedPrompt + input.slice(cursorOffset)
-    onInputChange(newInput)
+      input.slice(0, cursorOffset) + pastedPrompt + input.slice(cursorOffset);
+    onInputChange(newInput);
 
-    setCursorOffset(cursorOffset + pastedPrompt.length)
+    setCursorOffset(cursorOffset + pastedPrompt.length);
 
-    setPastedTexts(prev => [...prev, { placeholder: pastedPrompt, text }])
+    setPastedTexts((prev) => [...prev, { placeholder: pastedPrompt, text }]);
   }
 
   useEffect(() => {
-    setPastedTexts(prev => prev.filter(p => input.includes(p.placeholder)))
-    setPastedImages(prev => prev.filter(p => input.includes(p.placeholder)))
-  }, [input])
+    setPastedTexts((prev) => prev.filter((p) => input.includes(p.placeholder)));
+    setPastedImages((prev) =>
+      prev.filter((p) => input.includes(p.placeholder)),
+    );
+  }, [input]);
 
   useInput(
     (inputChar, key) => {
-      if (mode === 'bash' && (key.backspace || key.delete)) {
-        if (input === '') {
-          onModeChange('prompt')
+      if (mode === "bash" && (key.backspace || key.delete)) {
+        if (input === "") {
+          onModeChange("prompt");
         }
-        return
+        return;
       }
 
-      if (mode === 'koding' && (key.backspace || key.delete)) {
-        if (input === '') {
-          onModeChange('prompt')
+      if (mode === "koding" && (key.backspace || key.delete)) {
+        if (input === "") {
+          onModeChange("prompt");
         }
-        return
+        return;
       }
 
-      if (inputChar === '' && (key.escape || key.backspace || key.delete)) {
-        onModeChange('prompt')
+      if (inputChar === "" && (key.escape || key.backspace || key.delete)) {
+        onModeChange("prompt");
       }
       if (key.escape && messages.length > 0 && !input && !isLoading) {
-        handleRewindConversation()
-        return true
+        handleRewindConversation();
+        return true;
       }
 
-      return false
+      return false;
     },
     { isActive: !isEditingExternally },
-  )
+  );
 
   const handleExternalEdit = useCallback(async () => {
-    if (isEditingExternally || isLoading || isDisabled) return
-    setIsEditingExternally(true)
-    setMessage({ show: true, text: 'Opening external editor...' })
+    if (isEditingExternally || isLoading || isDisabled) return;
+    setIsEditingExternally(true);
+    setMessage({ show: true, text: "Opening external editor..." });
 
-    const result = await launchExternalEditor(input)
+    const result = await launchExternalEditor(input);
     if (result.text !== null) {
-      onInputChange(result.text)
-      setCursorOffset(result.text.length)
+      onInputChange(result.text);
+      setCursorOffset(result.text.length);
       setMessage({
         show: true,
-        text: `Loaded from ${result.editorLabel ?? 'editor'}`,
-      })
-      setTimeout(() => setMessage({ show: false }), 3000)
+        text: `Loaded from ${result.editorLabel ?? "editor"}`,
+      });
+      setTimeout(() => setMessage({ show: false }), 3000);
     } else {
       setMessage({
         show: true,
         text:
-          ('error' in result && result.error?.message) ??
-          'External editor unavailable. Set $EDITOR or install code/nano/vim/notepad.',
-      })
-      setTimeout(() => setMessage({ show: false }), 4000)
+          ("error" in result && result.error?.message) ??
+          "External editor unavailable. Set $EDITOR or install code/nano/vim/notepad.",
+      });
+      setTimeout(() => setMessage({ show: false }), 4000);
     }
 
-    setIsEditingExternally(false)
+    setIsEditingExternally(false);
   }, [
     input,
     isEditingExternally,
@@ -588,36 +592,36 @@ function PromptInput({
     onInputChange,
     setCursorOffset,
     setMessage,
-  ])
+  ]);
 
   const handleSpecialKey = useCallback(
     (inputChar: string, key: any): boolean => {
-      if (isEditingExternally) return true
+      if (isEditingExternally) return true;
 
       const action = getPromptInputSpecialKeyAction({
         inputChar,
         key,
         modeCycleShortcut,
-      })
+      });
 
-      if (action === 'modeCycle') {
-        cycleMode()
-        return true
+      if (action === "modeCycle") {
+        cycleMode();
+        return true;
       }
 
-      if (action === 'modelSwitch') {
+      if (action === "modelSwitch") {
         if (!isLoading) {
-          handleQuickModelSwitch()
+          handleQuickModelSwitch();
         }
-        return true
+        return true;
       }
 
-      if (action === 'externalEditor') {
-        void handleExternalEdit()
-        return true
+      if (action === "externalEditor") {
+        void handleExternalEdit();
+        return true;
       }
 
-      return false
+      return false;
     },
     [
       cycleMode,
@@ -627,18 +631,18 @@ function PromptInput({
       isLoading,
       modeCycleShortcut,
     ],
-  )
+  );
 
-  const textInputColumns = columns - 6
-  const tokenUsage = useMemo(() => countTokens(messages), [messages])
-  const modelManager = getModelManager()
-  const currentModelId = (modelManager.getModel('main') as any)?.id || null
+  const textInputColumns = columns - 6;
+  const tokenUsage = useMemo(() => countTokens(messages), [messages]);
+  const modelManager = getModelManager();
+  const currentModelId = (modelManager.getModel("main") as any)?.id || null;
 
   const modelInfo = useMemo(() => {
-    const freshModelManager = getModelManager()
-    const currentModel = freshModelManager.getModel('main')
+    const freshModelManager = getModelManager();
+    const currentModel = freshModelManager.getModel("main");
     if (!currentModel) {
-      return null
+      return null;
     }
 
     return {
@@ -647,26 +651,26 @@ function PromptInput({
       provider: currentModel.provider,
       contextLength: currentModel.contextLength,
       currentTokens: tokenUsage,
-    }
-  }, [tokenUsage, modelSwitchMessage.show, submitCount, currentModelId])
+    };
+  }, [tokenUsage, modelSwitchMessage.show, submitCount, currentModelId]);
 
   return (
     <Box flexDirection="column">
-      {(mode === 'bash' || modelInfo) && (
+      {(mode === "bash" || modelInfo) && (
         <Box
           justifyContent="space-between"
           marginBottom={1}
           flexDirection="row"
         >
-          {mode === 'bash' ? (
+          {mode === "bash" ? (
             <Text color={theme.bashBorder}>Shell PWD: {currentPwd}</Text>
           ) : (
             <Text> </Text>
           )}
           {modelInfo && (
             <Text dimColor>
-              [{modelInfo.provider}] {modelInfo.name}:{' '}
-              {Math.round(modelInfo.currentTokens / 1000)}k /{' '}
+              [{modelInfo.provider}] {modelInfo.name}:{" "}
+              {Math.round(modelInfo.currentTokens / 1000)}k /{" "}
               {Math.round(modelInfo.contextLength / 1000)}k
             </Text>
           )}
@@ -681,9 +685,9 @@ function PromptInput({
         borderLeft={false}
         borderRight={false}
         borderColor={
-          mode === 'bash'
+          mode === "bash"
             ? theme.bashBorder
-            : mode === 'koding'
+            : mode === "koding"
               ? theme.notingBorder
               : theme.inputBorder
         }
@@ -699,9 +703,9 @@ function PromptInput({
           justifyContent="flex-start"
           width={3}
         >
-          {mode === 'bash' ? (
+          {mode === "bash" ? (
             <Text color={theme.bashBorder}>&nbsp;!&nbsp;</Text>
-          ) : mode === 'koding' ? (
+          ) : mode === "koding" ? (
             <Text color={theme.noting}>&nbsp;#&nbsp;</Text>
           ) : (
             <Text color={isLoading ? theme.secondaryText : undefined}>
@@ -746,22 +750,22 @@ function PromptInput({
                 <Text dimColor>Press Escape again to undo</Text>
               ) : modelSwitchMessage.show ? (
                 <Text color={theme.success}>{modelSwitchMessage.text}</Text>
-              ) : mode === 'prompt' && currentMode !== 'default' ? (
+              ) : mode === "prompt" && currentMode !== "default" ? (
                 <CompactModeIndicator />
               ) : (
                 <>
                   <Text
-                    color={mode === 'bash' ? theme.bashBorder : undefined}
-                    dimColor={mode !== 'bash'}
+                    color={mode === "bash" ? theme.bashBorder : undefined}
+                    dimColor={mode !== "bash"}
                   >
                     ! run some shell command
                   </Text>
                   <Text dimColor> · / for commands</Text>
                   <Text
-                    color={mode === 'koding' ? theme.noting : undefined}
-                    dimColor={mode !== 'koding'}
+                    color={mode === "koding" ? theme.noting : undefined}
+                    dimColor={mode !== "koding"}
                   >
-                    {' '}
+                    {" "}
                     · # tell agent something to remember forever
                   </Text>
                 </>
@@ -771,7 +775,7 @@ function PromptInput({
               <Text dimColor wrap="truncate-end">
                 {statusLine
                   ? `${statusLine} · ESC to interrupt · 2×ESC for undo`
-                  : 'ESC to interrupt · 2×ESC for undo'}
+                  : "ESC to interrupt · 2×ESC for undo"}
               </Text>
             </Box>
           </Box>
@@ -783,10 +787,10 @@ function PromptInput({
               <Box flexDirection="row" justifyContent="space-between">
                 <Box justifyContent="flex-start" gap={1}>
                   <Text dimColor wrap="truncate-end">
-                    option+enter: newline ·{' '}
+                    option+enter: newline ·{" "}
                     {showQuickModelSwitchShortcut
-                      ? 'option+m: switch model · '
-                      : ''}
+                      ? "option+m: switch model · "
+                      : ""}
                     option+g: external editor · {modeCycleShortcut.displayText}:
                     switch mode
                   </Text>
@@ -820,20 +824,20 @@ function PromptInput({
             >
               <Text
                 dimColor={!emptyDirMessage}
-                color={emptyDirMessage ? 'yellow' : undefined}
+                color={emptyDirMessage ? "yellow" : undefined}
               >
                 {emptyDirMessage ||
                   (() => {
-                    const selected = suggestions[selectedIndex]
+                    const selected = suggestions[selectedIndex];
                     if (!selected) {
-                      return '↑↓ navigate • → accept • Tab cycle • Esc close'
+                      return "↑↓ navigate • → accept • Tab cycle • Esc close";
                     }
-                    if (selected?.value.endsWith('/')) {
-                      return '→ enter directory • ↑↓ navigate • Tab cycle • Esc close'
-                    } else if (selected?.type === 'agent') {
-                      return '→ select agent • ↑↓ navigate • Tab cycle • Esc close'
+                    if (selected?.value.endsWith("/")) {
+                      return "→ enter directory • ↑↓ navigate • Tab cycle • Esc close";
+                    } else if (selected?.type === "agent") {
+                      return "→ select agent • ↑↓ navigate • Tab cycle • Esc close";
                     } else {
-                      return '→ insert reference • ↑↓ navigate • Tab cycle • Esc close'
+                      return "→ insert reference • ↑↓ navigate • Tab cycle • Esc close";
                     }
                   })()}
               </Text>
@@ -849,12 +853,12 @@ function PromptInput({
         </Box>
       )}
     </Box>
-  )
+  );
 }
 
-export default memo(PromptInput)
+export default memo(PromptInput);
 
 function exit(): never {
-  setTerminalTitle('')
-  process.exit(0)
+  setTerminalTitle("");
+  process.exit(0);
 }

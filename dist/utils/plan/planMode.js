@@ -1,9 +1,13 @@
-import { existsSync, mkdirSync, readFileSync, realpathSync } from 'fs';
-import { randomBytes } from 'crypto';
-import { isAbsolute, join, relative, resolve, parse } from 'path';
-import { getKodeBaseDir } from '@utils/config/env';
-import { PLAN_SLUG_ADJECTIVES, PLAN_SLUG_NOUNS, PLAN_SLUG_VERBS, } from './planSlugWords';
-const DEFAULT_CONVERSATION_KEY = 'default';
+import { existsSync, mkdirSync, readFileSync, realpathSync } from "fs";
+import { randomBytes } from "crypto";
+import { isAbsolute, join, relative, resolve, parse } from "path";
+import { getKodeBaseDir } from "@utils/config/env";
+import {
+  PLAN_SLUG_ADJECTIVES,
+  PLAN_SLUG_NOUNS,
+  PLAN_SLUG_VERBS,
+} from "./planSlugWords";
+const DEFAULT_CONVERSATION_KEY = "default";
 const MAX_SLUG_ATTEMPTS = 10;
 const TURNS_BETWEEN_ATTACHMENTS = 5;
 const planModeEnabledByConversationKey = new Map();
@@ -12,107 +16,105 @@ const planModeFlagsByConversationKey = new Map();
 const planModeAttachmentStateByAgentKey = new Map();
 let activePlanConversationKey = null;
 function getConversationKey(context) {
-    const messageLogName = context?.options?.messageLogName ?? DEFAULT_CONVERSATION_KEY;
-    const forkNumber = context?.options?.forkNumber ?? 0;
-    return `${messageLogName}:${forkNumber}`;
+  const messageLogName =
+    context?.options?.messageLogName ?? DEFAULT_CONVERSATION_KEY;
+  const forkNumber = context?.options?.forkNumber ?? 0;
+  return `${messageLogName}:${forkNumber}`;
 }
 export function getPlanConversationKey(context) {
-    return getConversationKey(context);
+  return getConversationKey(context);
 }
 export function setActivePlanConversationKey(conversationKey) {
-    activePlanConversationKey = conversationKey;
+  activePlanConversationKey = conversationKey;
 }
 export function getActivePlanConversationKey() {
-    return activePlanConversationKey;
+  return activePlanConversationKey;
 }
 function getAgentKey(context) {
-    const conversationKey = getConversationKey(context);
-    const agentId = context?.agentId ?? 'main';
-    return `${conversationKey}:${agentId}`;
+  const conversationKey = getConversationKey(context);
+  const agentId = context?.agentId ?? "main";
+  return `${conversationKey}:${agentId}`;
 }
 function pickIndex(length) {
-    return randomBytes(4).readUInt32BE(0) % length;
+  return randomBytes(4).readUInt32BE(0) % length;
 }
 function pickWord(words) {
-    return words[pickIndex(words.length)];
+  return words[pickIndex(words.length)];
 }
 function generateSlug() {
-    const adjective = pickWord(PLAN_SLUG_ADJECTIVES);
-    const verb = pickWord(PLAN_SLUG_VERBS);
-    const noun = pickWord(PLAN_SLUG_NOUNS);
-    return `${adjective}-${verb}-${noun}`;
+  const adjective = pickWord(PLAN_SLUG_ADJECTIVES);
+  const verb = pickWord(PLAN_SLUG_VERBS);
+  const noun = pickWord(PLAN_SLUG_NOUNS);
+  return `${adjective}-${verb}-${noun}`;
 }
 function getOrCreatePlanSlug(conversationKey) {
-    const existing = planSlugCache.get(conversationKey);
-    if (existing)
-        return existing;
-    const dir = getPlanDirectory();
-    let slug = null;
-    for (let attempt = 0; attempt < MAX_SLUG_ATTEMPTS; attempt++) {
-        slug = generateSlug();
-        const path = join(dir, `${slug}.md`);
-        if (!existsSync(path))
-            break;
-    }
-    if (!slug)
-        slug = generateSlug();
-    planSlugCache.set(conversationKey, slug);
-    return slug;
+  const existing = planSlugCache.get(conversationKey);
+  if (existing) return existing;
+  const dir = getPlanDirectory();
+  let slug = null;
+  for (let attempt = 0; attempt < MAX_SLUG_ATTEMPTS; attempt++) {
+    slug = generateSlug();
+    const path = join(dir, `${slug}.md`);
+    if (!existsSync(path)) break;
+  }
+  if (!slug) slug = generateSlug();
+  planSlugCache.set(conversationKey, slug);
+  return slug;
 }
 function extractSlugFromPlanFilePath(planFilePath) {
-    if (!planFilePath)
-        return null;
-    const baseName = parse(planFilePath).name;
-    if (!baseName)
-        return null;
-    const agentMarker = '-agent-';
-    const idx = baseName.lastIndexOf(agentMarker);
-    if (idx === -1)
-        return baseName;
-    if (idx === 0)
-        return null;
-    return baseName.slice(0, idx);
+  if (!planFilePath) return null;
+  const baseName = parse(planFilePath).name;
+  if (!baseName) return null;
+  const agentMarker = "-agent-";
+  const idx = baseName.lastIndexOf(agentMarker);
+  if (idx === -1) return baseName;
+  if (idx === 0) return null;
+  return baseName.slice(0, idx);
 }
 function getOrCreatePlanModeFlags(conversationKey) {
-    const existing = planModeFlagsByConversationKey.get(conversationKey);
-    if (existing)
-        return existing;
-    const created = {
-        hasExitedPlanMode: false,
-        needsPlanModeExitAttachment: false,
-    };
-    planModeFlagsByConversationKey.set(conversationKey, created);
-    return created;
+  const existing = planModeFlagsByConversationKey.get(conversationKey);
+  if (existing) return existing;
+  const created = {
+    hasExitedPlanMode: false,
+    needsPlanModeExitAttachment: false,
+  };
+  planModeFlagsByConversationKey.set(conversationKey, created);
+  return created;
 }
 function getMaxParallelExploreAgents() {
-    const raw = process.env.KODE_PLAN_V2_EXPLORE_AGENT_COUNT ??
-        process.env.CLAUDE_CODE_PLAN_V2_EXPLORE_AGENT_COUNT;
-    if (raw) {
-        const parsed = Number.parseInt(raw, 10);
-        if (Number.isFinite(parsed) && parsed > 0 && parsed <= 10)
-            return parsed;
-    }
-    return 3;
+  const raw =
+    process.env.KODE_PLAN_V2_EXPLORE_AGENT_COUNT ??
+    process.env.CLAUDE_CODE_PLAN_V2_EXPLORE_AGENT_COUNT;
+  if (raw) {
+    const parsed = Number.parseInt(raw, 10);
+    if (Number.isFinite(parsed) && parsed > 0 && parsed <= 10) return parsed;
+  }
+  return 3;
 }
 function getMaxParallelPlanAgents() {
-    const raw = process.env.KODE_PLAN_V2_AGENT_COUNT ??
-        process.env.CLAUDE_CODE_PLAN_V2_AGENT_COUNT;
-    if (raw) {
-        const parsed = Number.parseInt(raw, 10);
-        if (Number.isFinite(parsed) && parsed > 0 && parsed <= 10)
-            return parsed;
-    }
-    return 1;
+  const raw =
+    process.env.KODE_PLAN_V2_AGENT_COUNT ??
+    process.env.CLAUDE_CODE_PLAN_V2_AGENT_COUNT;
+  if (raw) {
+    const parsed = Number.parseInt(raw, 10);
+    if (Number.isFinite(parsed) && parsed > 0 && parsed <= 10) return parsed;
+  }
+  return 1;
 }
 function buildPlanModeMainReminder(args) {
-    const { planExists, planFilePath, maxParallelExploreAgents, maxParallelPlanAgents, } = args;
-    const writeToolName = 'Write';
-    const editToolName = 'Edit';
-    const askUserToolName = 'AskUserQuestion';
-    const exploreAgentType = 'Explore';
-    const planAgentType = 'Plan';
-    const exitPlanModeToolName = 'ExitPlanMode';
-    return `Plan mode is active. The user indicated that they do not want you to execute yet -- you MUST NOT make any edits (with the exception of the plan file mentioned below), run any non-readonly tools (including changing configs or making commits), or otherwise make any changes to the system. This supercedes any other instructions you have received.
+  const {
+    planExists,
+    planFilePath,
+    maxParallelExploreAgents,
+    maxParallelPlanAgents,
+  } = args;
+  const writeToolName = "Write";
+  const editToolName = "Edit";
+  const askUserToolName = "AskUserQuestion";
+  const exploreAgentType = "Explore";
+  const planAgentType = "Plan";
+  const exitPlanModeToolName = "ExitPlanMode";
+  return `Plan mode is active. The user indicated that they do not want you to execute yet -- you MUST NOT make any edits (with the exception of the plan file mentioned below), run any non-readonly tools (including changing configs or making commits), or otherwise make any changes to the system. This supercedes any other instructions you have received.
 
 ## Plan File Info:
 ${planExists ? `A plan file already exists at ${planFilePath}. You can read it and make incremental edits using the ${editToolName} tool.` : `No plan file exists yet. You should create your plan at ${planFilePath} using the ${writeToolName} tool.`}
@@ -143,8 +145,9 @@ You can launch up to ${maxParallelPlanAgents} agent(s) in parallel.
 **Guidelines:**
 - **Default**: Launch at least 1 Plan agent for most tasks - it helps validate your understanding and consider alternatives
 - **Skip agents**: Only for truly trivial tasks (typo fixes, single-line changes, simple renames)
-${maxParallelPlanAgents > 1
-        ? `- **Multiple agents**: Use up to ${maxParallelPlanAgents} agents for complex tasks that benefit from different perspectives
+${
+  maxParallelPlanAgents > 1
+    ? `- **Multiple agents**: Use up to ${maxParallelPlanAgents} agents for complex tasks that benefit from different perspectives
 
 Examples of when to use multiple agents:
 - The task touches multiple parts of the codebase
@@ -157,7 +160,8 @@ Example perspectives by task type:
 - Bug fix: root cause vs workaround vs prevention
 - Refactoring: minimal change vs clean architecture
 `
-        : ''}
+    : ""
+}
 In the agent prompt:
 - Provide comprehensive background context from Phase 1 exploration including filenames and code path traces
 - Describe requirements and constraints
@@ -182,11 +186,11 @@ This is critical - your turn should only end with either asking the user a quest
 NOTE: At any point in time through this workflow you should feel free to ask the user questions or clarifications. Don't make large assumptions about user intent. The goal is to present a well researched plan to the user, and tie any loose ends before implementation begins.`;
 }
 function buildPlanModeSubAgentReminder(args) {
-    const { planExists, planFilePath } = args;
-    const writeToolName = 'Write';
-    const editToolName = 'Edit';
-    const askUserToolName = 'AskUserQuestion';
-    return `Plan mode is active. The user indicated that they do not want you to execute yet -- you MUST NOT make any edits, run any non-readonly tools (including changing configs or making commits), or otherwise make any changes to the system. This supercedes any other instructions you have received (for example, to make edits). Instead, you should:
+  const { planExists, planFilePath } = args;
+  const writeToolName = "Write";
+  const editToolName = "Edit";
+  const askUserToolName = "AskUserQuestion";
+  return `Plan mode is active. The user indicated that they do not want you to execute yet -- you MUST NOT make any edits, run any non-readonly tools (including changing configs or making commits), or otherwise make any changes to the system. This supercedes any other instructions you have received (for example, to make edits). Instead, you should:
 
 ## Plan File Info:
 ${planExists ? `A plan file already exists at ${planFilePath}. You can read it and make incremental edits using the ${editToolName} tool if you need to.` : `No plan file exists yet. You should create your plan at ${planFilePath} using the ${writeToolName} tool if you need to.`}
@@ -194,8 +198,8 @@ You should build your plan incrementally by writing to or editing this file. NOT
 Answer the user's query comprehensively, using the ${askUserToolName} tool if you need to ask the user clarifying questions. If you do use the ${askUserToolName}, make sure to ask all clarifying questions you need to fully understand the user's intent before proceeding.`;
 }
 function buildPlanModeReentryReminder(planFilePath) {
-    const exitPlanModeToolName = 'ExitPlanMode';
-    return `## Re-entering Plan Mode
+  const exitPlanModeToolName = "ExitPlanMode";
+  return `## Re-entering Plan Mode
 
 You are returning to plan mode after having previously exited it. A plan file exists at ${planFilePath} from your previous planning session.
 
@@ -210,198 +214,198 @@ You are returning to plan mode after having previously exited it. A plan file ex
 Treat this as a fresh planning session. Do not assume the existing plan is relevant without evaluating it first.`;
 }
 function buildPlanModeExitReminder(planFilePath) {
-    return `## Exited Plan Mode
+  return `## Exited Plan Mode
 
 You have exited plan mode. You can now make edits, run tools, and take actions. The plan file is located at ${planFilePath} if you need to reference it.`;
 }
 function wrapSystemReminder(text) {
-    return `<system-reminder>\n${text}\n</system-reminder>`;
+  return `<system-reminder>\n${text}\n</system-reminder>`;
 }
 export function getPlanModeSystemPromptAdditions(messages, context) {
-    const conversationKey = getConversationKey(context);
-    const agentKey = getAgentKey(context);
-    const flags = getOrCreatePlanModeFlags(conversationKey);
-    const additions = [];
-    const assistantTurns = messages.filter(m => m?.type === 'assistant').length;
-    if (isPlanModeEnabled(context)) {
-        const previous = planModeAttachmentStateByAgentKey.get(agentKey) ??
-            {
-                hasInjected: false,
-                lastInjectedAssistantTurn: -Infinity,
-            };
-        if (previous.hasInjected &&
-            assistantTurns - previous.lastInjectedAssistantTurn <
-                TURNS_BETWEEN_ATTACHMENTS) {
-            return [];
-        }
-        const planFilePath = getPlanFilePath(context.agentId, conversationKey);
-        const planExists = existsSync(planFilePath);
-        if (flags.hasExitedPlanMode && planExists) {
-            additions.push(wrapSystemReminder(buildPlanModeReentryReminder(planFilePath)));
-            flags.hasExitedPlanMode = false;
-        }
-        const isSubAgent = !!context.agentId;
-        additions.push(wrapSystemReminder(isSubAgent
-            ? buildPlanModeSubAgentReminder({ planExists, planFilePath })
-            : buildPlanModeMainReminder({
-                planExists,
-                planFilePath,
-                maxParallelExploreAgents: getMaxParallelExploreAgents(),
-                maxParallelPlanAgents: getMaxParallelPlanAgents(),
-            })));
-        planModeFlagsByConversationKey.set(conversationKey, flags);
-        planModeAttachmentStateByAgentKey.set(agentKey, {
-            hasInjected: true,
-            lastInjectedAssistantTurn: assistantTurns,
-        });
-        return additions;
+  const conversationKey = getConversationKey(context);
+  const agentKey = getAgentKey(context);
+  const flags = getOrCreatePlanModeFlags(conversationKey);
+  const additions = [];
+  const assistantTurns = messages.filter((m) => m?.type === "assistant").length;
+  if (isPlanModeEnabled(context)) {
+    const previous = planModeAttachmentStateByAgentKey.get(agentKey) ?? {
+      hasInjected: false,
+      lastInjectedAssistantTurn: -Infinity,
+    };
+    if (
+      previous.hasInjected &&
+      assistantTurns - previous.lastInjectedAssistantTurn <
+        TURNS_BETWEEN_ATTACHMENTS
+    ) {
+      return [];
     }
-    if (flags.needsPlanModeExitAttachment) {
-        const planFilePath = getPlanFilePath(context.agentId, conversationKey);
-        additions.push(wrapSystemReminder(buildPlanModeExitReminder(planFilePath)));
-        flags.needsPlanModeExitAttachment = false;
-        planModeFlagsByConversationKey.set(conversationKey, flags);
+    const planFilePath = getPlanFilePath(context.agentId, conversationKey);
+    const planExists = existsSync(planFilePath);
+    if (flags.hasExitedPlanMode && planExists) {
+      additions.push(
+        wrapSystemReminder(buildPlanModeReentryReminder(planFilePath)),
+      );
+      flags.hasExitedPlanMode = false;
     }
+    const isSubAgent = !!context.agentId;
+    additions.push(
+      wrapSystemReminder(
+        isSubAgent
+          ? buildPlanModeSubAgentReminder({ planExists, planFilePath })
+          : buildPlanModeMainReminder({
+              planExists,
+              planFilePath,
+              maxParallelExploreAgents: getMaxParallelExploreAgents(),
+              maxParallelPlanAgents: getMaxParallelPlanAgents(),
+            }),
+      ),
+    );
+    planModeFlagsByConversationKey.set(conversationKey, flags);
+    planModeAttachmentStateByAgentKey.set(agentKey, {
+      hasInjected: true,
+      lastInjectedAssistantTurn: assistantTurns,
+    });
     return additions;
+  }
+  if (flags.needsPlanModeExitAttachment) {
+    const planFilePath = getPlanFilePath(context.agentId, conversationKey);
+    additions.push(wrapSystemReminder(buildPlanModeExitReminder(planFilePath)));
+    flags.needsPlanModeExitAttachment = false;
+    planModeFlagsByConversationKey.set(conversationKey, flags);
+  }
+  return additions;
 }
 export function isPlanModeEnabled(context) {
-    const key = getConversationKey(context);
-    return planModeEnabledByConversationKey.get(key) ?? false;
+  const key = getConversationKey(context);
+  return planModeEnabledByConversationKey.get(key) ?? false;
 }
 export function enterPlanMode(context) {
-    const key = getConversationKey(context);
-    planModeEnabledByConversationKey.set(key, true);
-    return { planFilePath: getPlanFilePath(context?.agentId, key) };
+  const key = getConversationKey(context);
+  planModeEnabledByConversationKey.set(key, true);
+  return { planFilePath: getPlanFilePath(context?.agentId, key) };
 }
 export function enterPlanModeForConversationKey(conversationKey) {
-    planModeEnabledByConversationKey.set(conversationKey, true);
+  planModeEnabledByConversationKey.set(conversationKey, true);
 }
 export function exitPlanMode(context) {
-    const key = getConversationKey(context);
-    planModeEnabledByConversationKey.set(key, false);
-    const flags = getOrCreatePlanModeFlags(key);
-    flags.hasExitedPlanMode = true;
-    flags.needsPlanModeExitAttachment = true;
-    planModeFlagsByConversationKey.set(key, flags);
-    return { planFilePath: getPlanFilePath(context?.agentId, key) };
+  const key = getConversationKey(context);
+  planModeEnabledByConversationKey.set(key, false);
+  const flags = getOrCreatePlanModeFlags(key);
+  flags.hasExitedPlanMode = true;
+  flags.needsPlanModeExitAttachment = true;
+  planModeFlagsByConversationKey.set(key, flags);
+  return { planFilePath: getPlanFilePath(context?.agentId, key) };
 }
 export function exitPlanModeForConversationKey(conversationKey) {
-    planModeEnabledByConversationKey.set(conversationKey, false);
-    const flags = getOrCreatePlanModeFlags(conversationKey);
-    flags.hasExitedPlanMode = true;
-    flags.needsPlanModeExitAttachment = true;
-    planModeFlagsByConversationKey.set(conversationKey, flags);
+  planModeEnabledByConversationKey.set(conversationKey, false);
+  const flags = getOrCreatePlanModeFlags(conversationKey);
+  flags.hasExitedPlanMode = true;
+  flags.needsPlanModeExitAttachment = true;
+  planModeFlagsByConversationKey.set(conversationKey, flags);
 }
 export function setPlanSlug(conversationKey, slug) {
-    planSlugCache.set(conversationKey, slug);
+  planSlugCache.set(conversationKey, slug);
 }
 export function getPlanSlugForConversationKey(conversationKey) {
-    return planSlugCache.get(conversationKey) ?? null;
+  return planSlugCache.get(conversationKey) ?? null;
 }
 export function hydratePlanSlugFromMessages(messages, context) {
-    const conversationKey = getConversationKey(context);
-    if (planSlugCache.has(conversationKey))
-        return true;
-    for (let i = messages.length - 1; i >= 0; i--) {
-        const msg = messages[i];
-        const directSlug = typeof msg?.slug === 'string' ? msg.slug.trim() : '';
-        if (directSlug) {
-            planSlugCache.set(conversationKey, directSlug);
-            return true;
-        }
-        const data = msg?.toolUseResult?.data;
-        if (!data || typeof data !== 'object')
-            continue;
-        const planFilePath = typeof data.planFilePath === 'string'
-            ? data.planFilePath
-            : typeof data.filePath === 'string'
-                ? data.filePath
-                : null;
-        if (!planFilePath)
-            continue;
-        const slug = extractSlugFromPlanFilePath(planFilePath);
-        if (!slug)
-            continue;
-        planSlugCache.set(conversationKey, slug);
-        return true;
+  const conversationKey = getConversationKey(context);
+  if (planSlugCache.has(conversationKey)) return true;
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const msg = messages[i];
+    const directSlug = typeof msg?.slug === "string" ? msg.slug.trim() : "";
+    if (directSlug) {
+      planSlugCache.set(conversationKey, directSlug);
+      return true;
     }
-    return false;
+    const data = msg?.toolUseResult?.data;
+    if (!data || typeof data !== "object") continue;
+    const planFilePath =
+      typeof data.planFilePath === "string"
+        ? data.planFilePath
+        : typeof data.filePath === "string"
+          ? data.filePath
+          : null;
+    if (!planFilePath) continue;
+    const slug = extractSlugFromPlanFilePath(planFilePath);
+    if (!slug) continue;
+    planSlugCache.set(conversationKey, slug);
+    return true;
+  }
+  return false;
 }
 export function getPlanDirectory() {
-    const dir = join(getKodeBaseDir(), 'plans');
-    if (!existsSync(dir)) {
-        mkdirSync(dir, { recursive: true });
-    }
-    return dir;
+  const dir = join(getKodeBaseDir(), "plans");
+  if (!existsSync(dir)) {
+    mkdirSync(dir, { recursive: true });
+  }
+  return dir;
 }
 export function getPlanFilePath(agentId, conversationKey) {
-    const dir = getPlanDirectory();
-    const key = conversationKey ?? DEFAULT_CONVERSATION_KEY;
-    const slug = getOrCreatePlanSlug(key);
-    if (!agentId)
-        return join(dir, `${slug}.md`);
-    return join(dir, `${slug}-agent-${agentId}.md`);
+  const dir = getPlanDirectory();
+  const key = conversationKey ?? DEFAULT_CONVERSATION_KEY;
+  const slug = getOrCreatePlanSlug(key);
+  if (!agentId) return join(dir, `${slug}.md`);
+  return join(dir, `${slug}-agent-${agentId}.md`);
 }
 function resolveExistingPath(path) {
-    const resolved = resolve(path);
-    try {
-        return realpathSync(resolved);
-    }
-    catch {
-        return resolved;
-    }
+  const resolved = resolve(path);
+  try {
+    return realpathSync(resolved);
+  } catch {
+    return resolved;
+  }
 }
 export function isPlanFilePathForActiveConversation(path) {
-    const key = activePlanConversationKey ?? DEFAULT_CONVERSATION_KEY;
-    const planDir = resolveExistingPath(getPlanDirectory());
-    const expectedMainPlanPath = resolveExistingPath(getPlanFilePath(undefined, key));
-    const target = resolveExistingPath(path);
-    const rel = relative(planDir, target);
-    if (!rel || rel === '')
-        return false;
-    if (rel.startsWith('..'))
-        return false;
-    if (isAbsolute(rel))
-        return false;
-    const expectedSlug = parse(expectedMainPlanPath).name;
-    const targetName = parse(target).name;
-    return (targetName === expectedSlug ||
-        targetName.startsWith(`${expectedSlug}-agent-`));
+  const key = activePlanConversationKey ?? DEFAULT_CONVERSATION_KEY;
+  const planDir = resolveExistingPath(getPlanDirectory());
+  const expectedMainPlanPath = resolveExistingPath(
+    getPlanFilePath(undefined, key),
+  );
+  const target = resolveExistingPath(path);
+  const rel = relative(planDir, target);
+  if (!rel || rel === "") return false;
+  if (rel.startsWith("..")) return false;
+  if (isAbsolute(rel)) return false;
+  const expectedSlug = parse(expectedMainPlanPath).name;
+  const targetName = parse(target).name;
+  return (
+    targetName === expectedSlug ||
+    targetName.startsWith(`${expectedSlug}-agent-`)
+  );
 }
 export function isMainPlanFilePathForActiveConversation(path) {
-    const key = activePlanConversationKey ?? DEFAULT_CONVERSATION_KEY;
-    const expected = resolveExistingPath(getPlanFilePath(undefined, key));
-    const target = resolveExistingPath(path);
-    return target === expected;
+  const key = activePlanConversationKey ?? DEFAULT_CONVERSATION_KEY;
+  const expected = resolveExistingPath(getPlanFilePath(undefined, key));
+  const target = resolveExistingPath(path);
+  return target === expected;
 }
 export function isPathInPlanDirectory(path) {
-    const dir = resolve(getPlanDirectory());
-    const target = resolve(path);
-    const rel = relative(dir, target);
-    if (!rel || rel === '')
-        return true;
-    if (rel.startsWith('..'))
-        return false;
-    if (isAbsolute(rel))
-        return false;
-    return true;
+  const dir = resolve(getPlanDirectory());
+  const target = resolve(path);
+  const rel = relative(dir, target);
+  if (!rel || rel === "") return true;
+  if (rel.startsWith("..")) return false;
+  if (isAbsolute(rel)) return false;
+  return true;
 }
 export function readPlanFile(agentId, conversationKey) {
-    const planFilePath = getPlanFilePath(agentId, conversationKey);
-    if (!existsSync(planFilePath)) {
-        return { content: '', exists: false, planFilePath };
-    }
-    return {
-        content: readFileSync(planFilePath, 'utf8'),
-        exists: true,
-        planFilePath,
-    };
+  const planFilePath = getPlanFilePath(agentId, conversationKey);
+  if (!existsSync(planFilePath)) {
+    return { content: "", exists: false, planFilePath };
+  }
+  return {
+    content: readFileSync(planFilePath, "utf8"),
+    exists: true,
+    planFilePath,
+  };
 }
 export function __resetPlanModeForTests() {
-    planModeEnabledByConversationKey.clear();
-    planSlugCache.clear();
-    planModeFlagsByConversationKey.clear();
-    planModeAttachmentStateByAgentKey.clear();
-    activePlanConversationKey = null;
+  planModeEnabledByConversationKey.clear();
+  planSlugCache.clear();
+  planModeFlagsByConversationKey.clear();
+  planModeAttachmentStateByAgentKey.clear();
+  activePlanConversationKey = null;
 }
 //# sourceMappingURL=planMode.js.map

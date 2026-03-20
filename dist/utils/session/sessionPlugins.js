@@ -1,14 +1,14 @@
 let sessionPlugins = [];
 export function setSessionPlugins(next) {
-    sessionPlugins = next;
+  sessionPlugins = next;
 }
 export function getSessionPlugins() {
-    return sessionPlugins;
+  return sessionPlugins;
 }
 export function clearSessionPlugins() {
-    sessionPlugins = [];
+  sessionPlugins = [];
 }
 export function __resetSessionPluginsForTests() {
-    sessionPlugins = [];
+  sessionPlugins = [];
 }
 //# sourceMappingURL=sessionPlugins.js.map

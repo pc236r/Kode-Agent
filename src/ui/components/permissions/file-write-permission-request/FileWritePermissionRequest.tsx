@@ -1,32 +1,32 @@
-import { Box, Text, useInput } from 'ink'
-import React, { useCallback, useMemo } from 'react'
-import { Select } from '@components/custom-select/select'
-import { basename, dirname, extname } from 'path'
-import { getTheme } from '@utils/theme'
+import { Box, Text, useInput } from "ink";
+import React, { useCallback, useMemo } from "react";
+import { Select } from "@components/custom-select/select";
+import { basename, dirname, extname } from "path";
+import { getTheme } from "@utils/theme";
 import {
   PermissionRequestTitle,
   textColorForRiskScore,
-} from '@components/permissions/PermissionRequestTitle'
-import { logUnaryEvent } from '@utils/log/unaryLogging'
-import { env } from '@utils/config/env'
-import { type ToolUseConfirm } from '@components/permissions/PermissionRequest'
-import { existsSync } from 'fs'
-import chalk from 'chalk'
+} from "@components/permissions/PermissionRequestTitle";
+import { logUnaryEvent } from "@utils/log/unaryLogging";
+import { env } from "@utils/config/env";
+import { type ToolUseConfirm } from "@components/permissions/PermissionRequest";
+import { existsSync } from "fs";
+import chalk from "chalk";
 import {
   UnaryEvent,
   usePermissionRequestLogging,
-} from '@hooks/usePermissionRequestLogging'
-import { FileWriteToolDiff } from './FileWriteToolDiff'
-import { useTerminalSize } from '@hooks/useTerminalSize'
-import { getPermissionModeCycleShortcut } from '@utils/terminal/permissionModeCycleShortcut'
-import { usePermissionContext } from '@context/PermissionContext'
-import { isPathInWorkingDirectories } from '@utils/permissions/fileToolPermissionEngine'
+} from "@hooks/usePermissionRequestLogging";
+import { FileWriteToolDiff } from "./FileWriteToolDiff";
+import { useTerminalSize } from "@hooks/useTerminalSize";
+import { getPermissionModeCycleShortcut } from "@utils/terminal/permissionModeCycleShortcut";
+import { usePermissionContext } from "@context/PermissionContext";
+import { isPathInWorkingDirectories } from "@utils/permissions/fileToolPermissionEngine";
 
 type Props = {
-  toolUseConfirm: ToolUseConfirm
-  onDone(): void
-  verbose: boolean
-}
+  toolUseConfirm: ToolUseConfirm;
+  onDone(): void;
+  verbose: boolean;
+};
 
 export function FileWritePermissionRequest({
   toolUseConfirm,
@@ -34,93 +34,93 @@ export function FileWritePermissionRequest({
   verbose,
 }: Props): React.ReactNode {
   const { applyToolPermissionUpdate, toolPermissionContext } =
-    usePermissionContext()
+    usePermissionContext();
   const { file_path, content } = toolUseConfirm.input as {
-    file_path: string
-    content: string
-  }
-  const modeCycleShortcut = useMemo(() => getPermissionModeCycleShortcut(), [])
-  const hasSessionSuggestion = (toolUseConfirm.suggestions?.length ?? 0) > 0
+    file_path: string;
+    content: string;
+  };
+  const modeCycleShortcut = useMemo(() => getPermissionModeCycleShortcut(), []);
+  const hasSessionSuggestion = (toolUseConfirm.suggestions?.length ?? 0) > 0;
   const isInWorkingDir = isPathInWorkingDirectories(
     dirname(file_path),
     toolPermissionContext,
-  )
+  );
   const sessionLabel = useMemo(() => {
-    const dirPath = dirname(file_path)
-    const dirName = basename(dirPath) || 'this directory'
+    const dirPath = dirname(file_path);
+    const dirName = basename(dirPath) || "this directory";
     const shortcutHint = chalk.bold.hex(getTheme().warning)(
       `(${modeCycleShortcut.displayText})`,
-    )
+    );
     return isInWorkingDir
       ? `Yes, allow all edits during this session ${shortcutHint}`
-      : `Yes, allow all edits in ${chalk.bold(`${dirName}/`)} during this session ${shortcutHint}`
-  }, [file_path, isInWorkingDir, modeCycleShortcut.displayText])
-  const fileExists = useMemo(() => existsSync(file_path), [file_path])
+      : `Yes, allow all edits in ${chalk.bold(`${dirName}/`)} during this session ${shortcutHint}`;
+  }, [file_path, isInWorkingDir, modeCycleShortcut.displayText]);
+  const fileExists = useMemo(() => existsSync(file_path), [file_path]);
   const unaryEvent = useMemo<UnaryEvent>(
     () => ({
-      completion_type: 'write_file_single',
+      completion_type: "write_file_single",
       language_name: extractLanguageName(file_path),
     }),
     [file_path],
-  )
-  const { columns } = useTerminalSize()
-  usePermissionRequestLogging(toolUseConfirm, unaryEvent)
+  );
+  const { columns } = useTerminalSize();
+  usePermissionRequestLogging(toolUseConfirm, unaryEvent);
 
   const handleChoice = useCallback(
     (newValue: string) => {
       switch (newValue) {
-        case 'yes':
-          extractLanguageName(file_path).then(language => {
+        case "yes":
+          extractLanguageName(file_path).then((language) => {
             logUnaryEvent({
-              completion_type: 'write_file_single',
-              event: 'accept',
+              completion_type: "write_file_single",
+              event: "accept",
               metadata: {
                 language_name: language,
                 message_id: toolUseConfirm.assistantMessage.message.id,
                 platform: env.platform,
               },
-            })
-          })
-          onDone()
-          toolUseConfirm.onAllow('temporary')
-          return
-        case 'yes-session':
-          extractLanguageName(file_path).then(language => {
+            });
+          });
+          onDone();
+          toolUseConfirm.onAllow("temporary");
+          return;
+        case "yes-session":
+          extractLanguageName(file_path).then((language) => {
             logUnaryEvent({
-              completion_type: 'write_file_single',
-              event: 'accept',
+              completion_type: "write_file_single",
+              event: "accept",
               metadata: {
                 language_name: language,
                 message_id: toolUseConfirm.assistantMessage.message.id,
                 platform: env.platform,
               },
-            })
-          })
+            });
+          });
           if (hasSessionSuggestion) {
             for (const update of toolUseConfirm.suggestions ?? []) {
-              applyToolPermissionUpdate(update)
+              applyToolPermissionUpdate(update);
             }
           }
-          onDone()
+          onDone();
           toolUseConfirm.onAllow(
-            hasSessionSuggestion ? 'permanent' : 'temporary',
-          )
-          return
-        case 'no':
-          extractLanguageName(file_path).then(language => {
+            hasSessionSuggestion ? "permanent" : "temporary",
+          );
+          return;
+        case "no":
+          extractLanguageName(file_path).then((language) => {
             logUnaryEvent({
-              completion_type: 'write_file_single',
-              event: 'reject',
+              completion_type: "write_file_single",
+              event: "reject",
               metadata: {
                 language_name: language,
                 message_id: toolUseConfirm.assistantMessage.message.id,
                 platform: env.platform,
               },
-            })
-          })
-          onDone()
-          toolUseConfirm.onReject()
-          return
+            });
+          });
+          onDone();
+          toolUseConfirm.onReject();
+          return;
       }
     },
     [
@@ -130,14 +130,14 @@ export function FileWritePermissionRequest({
       onDone,
       toolUseConfirm,
     ],
-  )
+  );
 
   useInput((inputChar, key) => {
-    if (!modeCycleShortcut.check(inputChar, key)) return
-    if (!hasSessionSuggestion) return
-    handleChoice('yes-session')
-    return true
-  })
+    if (!modeCycleShortcut.check(inputChar, key)) return;
+    if (!hasSessionSuggestion) return;
+    handleChoice("yes-session");
+    return true;
+  });
 
   return (
     <Box
@@ -150,7 +150,7 @@ export function FileWritePermissionRequest({
       paddingBottom={1}
     >
       <PermissionRequestTitle
-        title={`${fileExists ? 'Edit' : 'Create'} file`}
+        title={`${fileExists ? "Edit" : "Create"} file`}
         riskScore={toolUseConfirm.riskScore}
       />
       <Box flexDirection="column">
@@ -163,42 +163,42 @@ export function FileWritePermissionRequest({
       </Box>
       <Box flexDirection="column">
         <Text>
-          Do you want to {fileExists ? 'make this edit to' : 'create'}{' '}
+          Do you want to {fileExists ? "make this edit to" : "create"}{" "}
           <Text bold>{basename(file_path)}</Text>?
         </Text>
         <Select
           options={[
             {
-              label: 'Yes',
-              value: 'yes',
+              label: "Yes",
+              value: "yes",
             },
             ...(hasSessionSuggestion
               ? [
                   {
                     label: sessionLabel,
-                    value: 'yes-session',
+                    value: "yes-session",
                   },
                 ]
               : []),
             {
-              label: `No, and provide instructions (${chalk.bold.hex(getTheme().warning)('esc')})`,
-              value: 'no',
+              label: `No, and provide instructions (${chalk.bold.hex(getTheme().warning)("esc")})`,
+              value: "no",
             },
           ]}
           onChange={handleChoice}
         />
       </Box>
     </Box>
-  )
+  );
 }
 
 async function extractLanguageName(file_path: string): Promise<string> {
-  const ext = extname(file_path)
+  const ext = extname(file_path);
   if (!ext) {
-    return 'unknown'
+    return "unknown";
   }
-  const Highlight = (await import('highlight.js')) as unknown as {
-    default: { getLanguage(ext: string): { name: string | undefined } }
-  }
-  return Highlight.default.getLanguage(ext.slice(1))?.name ?? 'unknown'
+  const Highlight = (await import("highlight.js")) as unknown as {
+    default: { getLanguage(ext: string): { name: string | undefined } };
+  };
+  return Highlight.default.getLanguage(ext.slice(1))?.name ?? "unknown";
 }

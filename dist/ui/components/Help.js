@@ -1,150 +1,325 @@
-import { PRODUCT_COMMAND, PRODUCT_NAME } from '@constants/product';
-import { getCustomCommandDirectories, hasCustomCommands, } from '@services/customCommands';
-import * as React from 'react';
-import { Box, Text, useInput } from 'ink';
-import { getTheme } from '@utils/theme';
-import { PressEnterToContinue } from './PressEnterToContinue';
-import { MACRO } from '@constants/macros';
-export function Help({ commands, onClose, }) {
-    const theme = getTheme();
-    const moreHelp = `Learn more at: ${MACRO.README_URL}`;
-    const filteredCommands = commands.filter(cmd => !cmd.isHidden);
-    const customCommands = filteredCommands.filter(cmd => cmd.scope === 'project' || cmd.scope === 'user');
-    const builtInCommands = filteredCommands.filter(cmd => !customCommands.includes(cmd));
-    const [count, setCount] = React.useState(0);
-    React.useEffect(() => {
-        const timer = setTimeout(() => {
-            if (count < 3) {
-                setCount(count + 1);
-            }
-        }, 250);
-        return () => clearTimeout(timer);
-    }, [count]);
-    useInput((_, key) => {
-        if (key.return)
-            onClose();
-    });
-    return (React.createElement(Box, { flexDirection: "column", padding: 1 },
-        React.createElement(Text, { bold: true, color: theme.kode }, `${PRODUCT_NAME} v${MACRO.VERSION}`),
-        React.createElement(Box, { marginTop: 1, flexDirection: "column" },
-            React.createElement(Text, null,
-                PRODUCT_NAME,
-                " is a beta research preview. Always review",
-                ' ',
-                PRODUCT_NAME,
-                "'s responses, especially when running code.",
-                ' ',
-                PRODUCT_NAME,
-                " has read access to files in the current directory and can run commands and edit files with your permission.")),
-        count >= 1 && (React.createElement(Box, { flexDirection: "column", marginTop: 1 },
-            React.createElement(Text, { bold: true }, "Usage Modes:"),
-            React.createElement(Text, null,
-                "\u2022 REPL: ",
-                React.createElement(Text, { bold: true }, PRODUCT_COMMAND),
-                " (interactive session)"),
-            React.createElement(Text, null,
-                "\u2022 Non-interactive:",
-                ' ',
-                React.createElement(Text, { bold: true },
-                    PRODUCT_COMMAND,
-                    " -p \"question\"")),
-            React.createElement(Box, { marginTop: 1 },
-                React.createElement(Text, null,
-                    "Run ",
-                    React.createElement(Text, { bold: true },
-                        PRODUCT_COMMAND,
-                        " -h"),
-                    " for all command line options")))),
-        count >= 2 && (React.createElement(Box, { marginTop: 1, flexDirection: "column" },
-            React.createElement(Text, { bold: true }, "Common Tasks:"),
-            React.createElement(Text, null,
-                "\u2022 Ask questions about your codebase",
-                ' ',
-                React.createElement(Text, { color: getTheme().secondaryText }, "> How does foo.py work?")),
-            React.createElement(Text, null,
-                "\u2022 Edit files",
-                ' ',
-                React.createElement(Text, { color: getTheme().secondaryText }, "> Update bar.ts to...")),
-            React.createElement(Text, null,
-                "\u2022 Fix errors",
-                ' ',
-                React.createElement(Text, { color: getTheme().secondaryText }, "> cargo build")),
-            React.createElement(Text, null,
-                "\u2022 Run commands",
-                ' ',
-                React.createElement(Text, { color: getTheme().secondaryText }, "> /help")),
-            React.createElement(Text, null,
-                "\u2022 Run bash commands",
-                ' ',
-                React.createElement(Text, { color: getTheme().secondaryText }, "> !ls")))),
-        count >= 3 && (React.createElement(Box, { marginTop: 1, flexDirection: "column" },
-            React.createElement(Text, { bold: true }, "Built-in Commands:"),
-            React.createElement(Box, { flexDirection: "column" }, builtInCommands.map((cmd, i) => (React.createElement(Box, { key: i, marginLeft: 1 },
-                React.createElement(Text, { bold: true }, `/${cmd.name}`),
-                React.createElement(Text, null,
-                    " - ",
-                    cmd.description))))),
-            customCommands.length > 0 && (React.createElement(React.Fragment, null,
-                React.createElement(Box, { marginTop: 1 },
-                    React.createElement(Text, { bold: true }, "Custom Commands:")),
-                React.createElement(Box, { flexDirection: "column" }, customCommands.map((cmd, i) => (React.createElement(Box, { key: i, marginLeft: 1 },
-                    React.createElement(Text, { bold: true, color: theme.kode }, `/${cmd.name}`),
-                    React.createElement(Text, null,
-                        " - ",
-                        cmd.description),
-                    cmd.aliases && cmd.aliases.length > 0 && (React.createElement(Text, { color: theme.secondaryText },
-                        ' ',
-                        "(aliases: ",
-                        cmd.aliases.join(', '),
-                        ")")),
-                    cmd.scope && (React.createElement(Text, { color: theme.secondaryText },
-                        " [",
-                        cmd.scope,
-                        "]")))))))),
-            hasCustomCommands() || customCommands.length > 0 ? (React.createElement(Box, { marginTop: 1 },
-                React.createElement(Text, { color: theme.secondaryText }, "Custom commands loaded from:"),
-                React.createElement(Text, { color: theme.secondaryText },
-                    "\u2022 ",
-                    getCustomCommandDirectories().userClaudeCommands,
-                    " (`.claude` user scope)"),
-                React.createElement(Text, { color: theme.secondaryText },
-                    "\u2022 ",
-                    getCustomCommandDirectories().projectClaudeCommands,
-                    ' ',
-                    "(`.claude` project scope)"),
-                React.createElement(Text, { color: theme.secondaryText }, "Skills loaded from:"),
-                React.createElement(Text, { color: theme.secondaryText },
-                    "\u2022 ",
-                    getCustomCommandDirectories().userClaudeSkills,
-                    " (`.claude` user scope)"),
-                React.createElement(Text, { color: theme.secondaryText },
-                    "\u2022 ",
-                    getCustomCommandDirectories().projectClaudeSkills,
-                    " (`.claude` project scope)"),
-                React.createElement(Text, { color: theme.secondaryText }, "Use /refresh-commands to reload after changes"))) : (React.createElement(Box, { marginTop: 1 },
-                React.createElement(Text, { color: theme.secondaryText }, "Create custom commands by adding `.md` files to:"),
-                React.createElement(Text, { color: theme.secondaryText },
-                    "\u2022 ",
-                    getCustomCommandDirectories().userClaudeCommands,
-                    " (`.claude` user scope)"),
-                React.createElement(Text, { color: theme.secondaryText },
-                    "\u2022 ",
-                    getCustomCommandDirectories().projectClaudeCommands,
-                    ' ',
-                    "(`.claude` project scope)"),
-                React.createElement(Text, { color: theme.secondaryText }, "Create skills by adding directories containing `SKILL.md` to:"),
-                React.createElement(Text, { color: theme.secondaryText },
-                    "\u2022 ",
-                    getCustomCommandDirectories().userClaudeSkills,
-                    " (`.claude` user scope)"),
-                React.createElement(Text, { color: theme.secondaryText },
-                    "\u2022 ",
-                    getCustomCommandDirectories().projectClaudeSkills,
-                    " (`.claude` project scope)"),
-                React.createElement(Text, { color: theme.secondaryText }, "Use /refresh-commands to reload after creation"))))),
-        React.createElement(Box, { marginTop: 1 },
-            React.createElement(Text, { color: theme.secondaryText }, moreHelp)),
-        React.createElement(Box, { marginTop: 2 },
-            React.createElement(PressEnterToContinue, null))));
+import { PRODUCT_COMMAND, PRODUCT_NAME } from "@constants/product";
+import {
+  getCustomCommandDirectories,
+  hasCustomCommands,
+} from "@services/customCommands";
+import * as React from "react";
+import { Box, Text, useInput } from "ink";
+import { getTheme } from "@utils/theme";
+import { PressEnterToContinue } from "./PressEnterToContinue";
+import { MACRO } from "@constants/macros";
+export function Help({ commands, onClose }) {
+  const theme = getTheme();
+  const moreHelp = `Learn more at: ${MACRO.README_URL}`;
+  const filteredCommands = commands.filter((cmd) => !cmd.isHidden);
+  const customCommands = filteredCommands.filter(
+    (cmd) => cmd.scope === "project" || cmd.scope === "user",
+  );
+  const builtInCommands = filteredCommands.filter(
+    (cmd) => !customCommands.includes(cmd),
+  );
+  const [count, setCount] = React.useState(0);
+  React.useEffect(() => {
+    const timer = setTimeout(() => {
+      if (count < 3) {
+        setCount(count + 1);
+      }
+    }, 250);
+    return () => clearTimeout(timer);
+  }, [count]);
+  useInput((_, key) => {
+    if (key.return) onClose();
+  });
+  return React.createElement(
+    Box,
+    { flexDirection: "column", padding: 1 },
+    React.createElement(
+      Text,
+      { bold: true, color: theme.kode },
+      `${PRODUCT_NAME} v${MACRO.VERSION}`,
+    ),
+    React.createElement(
+      Box,
+      { marginTop: 1, flexDirection: "column" },
+      React.createElement(
+        Text,
+        null,
+        PRODUCT_NAME,
+        " is a beta research preview. Always review",
+        " ",
+        PRODUCT_NAME,
+        "'s responses, especially when running code.",
+        " ",
+        PRODUCT_NAME,
+        " has read access to files in the current directory and can run commands and edit files with your permission.",
+      ),
+    ),
+    count >= 1 &&
+      React.createElement(
+        Box,
+        { flexDirection: "column", marginTop: 1 },
+        React.createElement(Text, { bold: true }, "Usage Modes:"),
+        React.createElement(
+          Text,
+          null,
+          "\u2022 REPL: ",
+          React.createElement(Text, { bold: true }, PRODUCT_COMMAND),
+          " (interactive session)",
+        ),
+        React.createElement(
+          Text,
+          null,
+          "\u2022 Non-interactive:",
+          " ",
+          React.createElement(
+            Text,
+            { bold: true },
+            PRODUCT_COMMAND,
+            ' -p "question"',
+          ),
+        ),
+        React.createElement(
+          Box,
+          { marginTop: 1 },
+          React.createElement(
+            Text,
+            null,
+            "Run ",
+            React.createElement(Text, { bold: true }, PRODUCT_COMMAND, " -h"),
+            " for all command line options",
+          ),
+        ),
+      ),
+    count >= 2 &&
+      React.createElement(
+        Box,
+        { marginTop: 1, flexDirection: "column" },
+        React.createElement(Text, { bold: true }, "Common Tasks:"),
+        React.createElement(
+          Text,
+          null,
+          "\u2022 Ask questions about your codebase",
+          " ",
+          React.createElement(
+            Text,
+            { color: getTheme().secondaryText },
+            "> How does foo.py work?",
+          ),
+        ),
+        React.createElement(
+          Text,
+          null,
+          "\u2022 Edit files",
+          " ",
+          React.createElement(
+            Text,
+            { color: getTheme().secondaryText },
+            "> Update bar.ts to...",
+          ),
+        ),
+        React.createElement(
+          Text,
+          null,
+          "\u2022 Fix errors",
+          " ",
+          React.createElement(
+            Text,
+            { color: getTheme().secondaryText },
+            "> cargo build",
+          ),
+        ),
+        React.createElement(
+          Text,
+          null,
+          "\u2022 Run commands",
+          " ",
+          React.createElement(
+            Text,
+            { color: getTheme().secondaryText },
+            "> /help",
+          ),
+        ),
+        React.createElement(
+          Text,
+          null,
+          "\u2022 Run bash commands",
+          " ",
+          React.createElement(
+            Text,
+            { color: getTheme().secondaryText },
+            "> !ls",
+          ),
+        ),
+      ),
+    count >= 3 &&
+      React.createElement(
+        Box,
+        { marginTop: 1, flexDirection: "column" },
+        React.createElement(Text, { bold: true }, "Built-in Commands:"),
+        React.createElement(
+          Box,
+          { flexDirection: "column" },
+          builtInCommands.map((cmd, i) =>
+            React.createElement(
+              Box,
+              { key: i, marginLeft: 1 },
+              React.createElement(Text, { bold: true }, `/${cmd.name}`),
+              React.createElement(Text, null, " - ", cmd.description),
+            ),
+          ),
+        ),
+        customCommands.length > 0 &&
+          React.createElement(
+            React.Fragment,
+            null,
+            React.createElement(
+              Box,
+              { marginTop: 1 },
+              React.createElement(Text, { bold: true }, "Custom Commands:"),
+            ),
+            React.createElement(
+              Box,
+              { flexDirection: "column" },
+              customCommands.map((cmd, i) =>
+                React.createElement(
+                  Box,
+                  { key: i, marginLeft: 1 },
+                  React.createElement(
+                    Text,
+                    { bold: true, color: theme.kode },
+                    `/${cmd.name}`,
+                  ),
+                  React.createElement(Text, null, " - ", cmd.description),
+                  cmd.aliases &&
+                    cmd.aliases.length > 0 &&
+                    React.createElement(
+                      Text,
+                      { color: theme.secondaryText },
+                      " ",
+                      "(aliases: ",
+                      cmd.aliases.join(", "),
+                      ")",
+                    ),
+                  cmd.scope &&
+                    React.createElement(
+                      Text,
+                      { color: theme.secondaryText },
+                      " [",
+                      cmd.scope,
+                      "]",
+                    ),
+                ),
+              ),
+            ),
+          ),
+        hasCustomCommands() || customCommands.length > 0
+          ? React.createElement(
+              Box,
+              { marginTop: 1 },
+              React.createElement(
+                Text,
+                { color: theme.secondaryText },
+                "Custom commands loaded from:",
+              ),
+              React.createElement(
+                Text,
+                { color: theme.secondaryText },
+                "\u2022 ",
+                getCustomCommandDirectories().userClaudeCommands,
+                " (`.claude` user scope)",
+              ),
+              React.createElement(
+                Text,
+                { color: theme.secondaryText },
+                "\u2022 ",
+                getCustomCommandDirectories().projectClaudeCommands,
+                " ",
+                "(`.claude` project scope)",
+              ),
+              React.createElement(
+                Text,
+                { color: theme.secondaryText },
+                "Skills loaded from:",
+              ),
+              React.createElement(
+                Text,
+                { color: theme.secondaryText },
+                "\u2022 ",
+                getCustomCommandDirectories().userClaudeSkills,
+                " (`.claude` user scope)",
+              ),
+              React.createElement(
+                Text,
+                { color: theme.secondaryText },
+                "\u2022 ",
+                getCustomCommandDirectories().projectClaudeSkills,
+                " (`.claude` project scope)",
+              ),
+              React.createElement(
+                Text,
+                { color: theme.secondaryText },
+                "Use /refresh-commands to reload after changes",
+              ),
+            )
+          : React.createElement(
+              Box,
+              { marginTop: 1 },
+              React.createElement(
+                Text,
+                { color: theme.secondaryText },
+                "Create custom commands by adding `.md` files to:",
+              ),
+              React.createElement(
+                Text,
+                { color: theme.secondaryText },
+                "\u2022 ",
+                getCustomCommandDirectories().userClaudeCommands,
+                " (`.claude` user scope)",
+              ),
+              React.createElement(
+                Text,
+                { color: theme.secondaryText },
+                "\u2022 ",
+                getCustomCommandDirectories().projectClaudeCommands,
+                " ",
+                "(`.claude` project scope)",
+              ),
+              React.createElement(
+                Text,
+                { color: theme.secondaryText },
+                "Create skills by adding directories containing `SKILL.md` to:",
+              ),
+              React.createElement(
+                Text,
+                { color: theme.secondaryText },
+                "\u2022 ",
+                getCustomCommandDirectories().userClaudeSkills,
+                " (`.claude` user scope)",
+              ),
+              React.createElement(
+                Text,
+                { color: theme.secondaryText },
+                "\u2022 ",
+                getCustomCommandDirectories().projectClaudeSkills,
+                " (`.claude` project scope)",
+              ),
+              React.createElement(
+                Text,
+                { color: theme.secondaryText },
+                "Use /refresh-commands to reload after creation",
+              ),
+            ),
+      ),
+    React.createElement(
+      Box,
+      { marginTop: 1 },
+      React.createElement(Text, { color: theme.secondaryText }, moreHelp),
+    ),
+    React.createElement(
+      Box,
+      { marginTop: 2 },
+      React.createElement(PressEnterToContinue, null),
+    ),
+  );
 }
 //# sourceMappingURL=Help.js.map

@@ -1,13 +1,13 @@
-import { zipObject, memoize } from 'lodash-es'
-import type { Tool } from '@tool'
-import { MCPTool } from '@tools/mcp/MCPTool/MCPTool'
-import { logMCPError } from '@utils/log'
-import type { Command } from '@commands'
+import { zipObject, memoize } from "lodash-es";
+import type { Tool } from "@tool";
+import { MCPTool } from "@tools/mcp/MCPTool/MCPTool";
+import { logMCPError } from "@utils/log";
+import type { Command } from "@commands";
 import type {
   ImageBlockParam,
   MessageParam,
   ToolResultBlockParam,
-} from '@anthropic-ai/sdk/resources/index.mjs'
+} from "@anthropic-ai/sdk/resources/index.mjs";
 import {
   CallToolResultSchema,
   type ClientRequest,
@@ -17,65 +17,65 @@ import {
   ListToolsResultSchema,
   type Result,
   ResultSchema,
-} from '@modelcontextprotocol/sdk/types.js'
-import { getClients, type WrappedClient } from './client'
+} from "@modelcontextprotocol/sdk/types.js";
+import { getClients, type WrappedClient } from "./client";
 
-type ConnectedClient = Extract<WrappedClient, { type: 'connected' }>
+type ConnectedClient = Extract<WrappedClient, { type: "connected" }>;
 
 function sanitizeMcpIdentifierPart(value: string): string {
-  return value.replace(/[^a-zA-Z0-9_-]/g, '_')
+  return value.replace(/[^a-zA-Z0-9_-]/g, "_");
 }
 
 function getMcpToolTimeoutMs(): number | null {
-  const raw = process.env.MCP_TOOL_TIMEOUT
-  const parsed = raw ? Number.parseInt(raw, 10) : NaN
-  if (!Number.isFinite(parsed) || parsed <= 0) return null
-  return parsed
+  const raw = process.env.MCP_TOOL_TIMEOUT;
+  const parsed = raw ? Number.parseInt(raw, 10) : NaN;
+  if (!Number.isFinite(parsed) || parsed <= 0) return null;
+  return parsed;
 }
 
-type TimeoutSignal = { signal: AbortSignal; cleanup: () => void }
+type TimeoutSignal = { signal: AbortSignal; cleanup: () => void };
 
 function createTimeoutSignal(timeoutMs: number): TimeoutSignal {
-  const timeoutFn = (AbortSignal as any)?.timeout
-  if (typeof timeoutFn === 'function') {
-    return { signal: timeoutFn(timeoutMs) as AbortSignal, cleanup: () => {} }
+  const timeoutFn = (AbortSignal as any)?.timeout;
+  if (typeof timeoutFn === "function") {
+    return { signal: timeoutFn(timeoutMs) as AbortSignal, cleanup: () => {} };
   }
 
-  const controller = new AbortController()
-  const id = setTimeout(() => controller.abort(), timeoutMs)
-  return { signal: controller.signal, cleanup: () => clearTimeout(id) }
+  const controller = new AbortController();
+  const id = setTimeout(() => controller.abort(), timeoutMs);
+  return { signal: controller.signal, cleanup: () => clearTimeout(id) };
 }
 
 function mergeAbortSignals(
   signals: Array<AbortSignal | undefined>,
 ): { signal: AbortSignal; cleanup: () => void } | null {
-  const active = signals.filter((s): s is AbortSignal => !!s)
-  if (active.length === 0) return null
-  if (active.length === 1) return { signal: active[0]!, cleanup: () => {} }
+  const active = signals.filter((s): s is AbortSignal => !!s);
+  if (active.length === 0) return null;
+  if (active.length === 1) return { signal: active[0]!, cleanup: () => {} };
 
-  const controller = new AbortController()
+  const controller = new AbortController();
 
   const abort = () => {
     try {
-      controller.abort()
+      controller.abort();
     } catch {}
-  }
+  };
 
   for (const s of active) {
     if (s.aborted) {
-      abort()
-      return { signal: controller.signal, cleanup: () => {} }
+      abort();
+      return { signal: controller.signal, cleanup: () => {} };
     }
-    s.addEventListener('abort', abort, { once: true })
+    s.addEventListener("abort", abort, { once: true });
   }
 
-  return { signal: controller.signal, cleanup: () => {} }
+  return { signal: controller.signal, cleanup: () => {} };
 }
 
 const IDE_MCP_TOOL_ALLOWLIST = new Set([
-  'mcp__ide__executeCode',
-  'mcp__ide__getDiagnostics',
-])
+  "mcp__ide__executeCode",
+  "mcp__ide__getDiagnostics",
+]);
 
 async function requestAll<
   ResultT extends Result,
@@ -85,33 +85,33 @@ async function requestAll<
   resultSchema: ResultSchemaT,
   requiredCapability: string,
 ): Promise<{ client: ConnectedClient; result: ResultT }[]> {
-  const timeoutMs = getMcpToolTimeoutMs()
-  const clients = await getClients()
+  const timeoutMs = getMcpToolTimeoutMs();
+  const clients = await getClients();
   const results = await Promise.allSettled(
-    clients.map(async client => {
-      if (client.type === 'failed') return null
+    clients.map(async (client) => {
+      if (client.type === "failed") return null;
 
-      let timeoutSignal: TimeoutSignal | null = null
+      let timeoutSignal: TimeoutSignal | null = null;
 
       try {
         let capabilities: Record<string, unknown> | null =
-          client.capabilities ?? null
+          client.capabilities ?? null;
 
         if (!capabilities) {
           try {
-            capabilities = client.client.getServerCapabilities() as any
+            capabilities = client.client.getServerCapabilities() as any;
           } catch {
-            capabilities = null
+            capabilities = null;
           }
-          client.capabilities = capabilities
+          client.capabilities = capabilities;
         }
 
         if (!(capabilities as any)?.[requiredCapability]) {
-          return null
+          return null;
         }
 
-        timeoutSignal = timeoutMs ? createTimeoutSignal(timeoutMs) : null
-        const merged = mergeAbortSignals([timeoutSignal?.signal])
+        timeoutSignal = timeoutMs ? createTimeoutSignal(timeoutMs) : null;
+        const merged = mergeAbortSignals([timeoutSignal?.signal]);
 
         return {
           client,
@@ -120,34 +120,34 @@ async function requestAll<
             resultSchema,
             merged?.signal ? ({ signal: merged.signal } as any) : undefined,
           )) as ResultT,
-        }
+        };
       } catch (error) {
-        if (client.type === 'connected') {
+        if (client.type === "connected") {
           logMCPError(
             client.name,
             `Failed to request '${req.method}': ${error instanceof Error ? error.message : String(error)}`,
-          )
+          );
         }
-        return null
+        return null;
       } finally {
-        timeoutSignal?.cleanup()
+        timeoutSignal?.cleanup();
       }
     }),
-  )
+  );
   return results
     .filter(
       (
         result,
       ): result is PromiseFulfilledResult<{
-        client: ConnectedClient
-        result: ResultT
-      } | null> => result.status === 'fulfilled',
+        client: ConnectedClient;
+        result: ResultT;
+      } | null> => result.status === "fulfilled",
     )
-    .map(result => result.value)
+    .map((result) => result.value)
     .filter(
       (result): result is { client: ConnectedClient; result: ResultT } =>
         result !== null,
-    )
+    );
 }
 
 export const getMCPTools = memoize(async (): Promise<Tool[]> => {
@@ -156,45 +156,45 @@ export const getMCPTools = memoize(async (): Promise<Tool[]> => {
     typeof ListToolsResultSchema
   >(
     {
-      method: 'tools/list',
+      method: "tools/list",
     },
     ListToolsResultSchema,
-    'tools',
-  )
+    "tools",
+  );
 
   return toolsList.flatMap(({ client, result: { tools } }) => {
-    const serverPart = sanitizeMcpIdentifierPart(client.name)
+    const serverPart = sanitizeMcpIdentifierPart(client.name);
 
     return tools
       .map((tool): Tool | null => {
-        const toolPart = sanitizeMcpIdentifierPart(tool.name)
-        const name = `mcp__${serverPart}__${toolPart}`
+        const toolPart = sanitizeMcpIdentifierPart(tool.name);
+        const name = `mcp__${serverPart}__${toolPart}`;
 
         if (
-          name.startsWith('mcp__ide__') &&
+          name.startsWith("mcp__ide__") &&
           !IDE_MCP_TOOL_ALLOWLIST.has(name)
         ) {
-          return null
+          return null;
         }
 
         return {
           ...MCPTool,
           name,
           isConcurrencySafe() {
-            return tool.annotations?.readOnlyHint ?? false
+            return tool.annotations?.readOnlyHint ?? false;
           },
           isReadOnly() {
-            return tool.annotations?.readOnlyHint ?? false
+            return tool.annotations?.readOnlyHint ?? false;
           },
           async description() {
-            return tool.description ?? ''
+            return tool.description ?? "";
           },
           async prompt() {
-            return tool.description ?? ''
+            return tool.description ?? "";
           },
-          inputJSONSchema: tool.inputSchema as Tool['inputJSONSchema'],
+          inputJSONSchema: tool.inputSchema as Tool["inputJSONSchema"],
           async validateInput() {
-            return { result: true }
+            return { result: true };
           },
           async *call(args: Record<string, unknown>, context) {
             const data = await callMCPTool({
@@ -203,22 +203,22 @@ export const getMCPTools = memoize(async (): Promise<Tool[]> => {
               args,
               toolUseId: context.toolUseId,
               signal: context.abortController.signal,
-            })
+            });
             yield {
-              type: 'result' as const,
+              type: "result" as const,
               data,
               resultForAssistant: data,
-            }
+            };
           },
           userFacingName() {
-            const title = tool.annotations?.title || tool.name
-            return `${client.name} - ${title} (MCP)`
+            const title = tool.annotations?.title || tool.name;
+            return `${client.name} - ${title} (MCP)`;
           },
-        }
+        };
       })
-      .filter((tool): tool is Tool => tool !== null)
-  })
-})
+      .filter((tool): tool is Tool => tool !== null);
+  });
+});
 
 async function callMCPTool({
   client: { client, name },
@@ -227,20 +227,20 @@ async function callMCPTool({
   toolUseId,
   signal,
 }: {
-  client: ConnectedClient
-  tool: string
-  args: Record<string, unknown>
-  toolUseId?: string
-  signal?: AbortSignal
-}): Promise<ToolResultBlockParam['content']> {
-  const timeoutMs = getMcpToolTimeoutMs()
-  const timeoutSignal = timeoutMs ? createTimeoutSignal(timeoutMs) : null
-  const merged = mergeAbortSignals([signal, timeoutSignal?.signal])
+  client: ConnectedClient;
+  tool: string;
+  args: Record<string, unknown>;
+  toolUseId?: string;
+  signal?: AbortSignal;
+}): Promise<ToolResultBlockParam["content"]> {
+  const timeoutMs = getMcpToolTimeoutMs();
+  const timeoutSignal = timeoutMs ? createTimeoutSignal(timeoutMs) : null;
+  const merged = mergeAbortSignals([signal, timeoutSignal?.signal]);
 
   const meta =
     toolUseId && toolUseId.trim()
-      ? { 'claudecode/toolUseId': toolUseId }
-      : undefined
+      ? { "claudecode/toolUseId": toolUseId }
+      : undefined;
 
   try {
     const result = await client.callTool(
@@ -251,56 +251,58 @@ async function callMCPTool({
       },
       CallToolResultSchema,
       merged?.signal ? ({ signal: merged.signal } as any) : undefined,
-    )
+    );
 
-    if ('isError' in result && result.isError) {
+    if ("isError" in result && result.isError) {
       const contentText =
-        'content' in result && Array.isArray(result.content)
-          ? result.content.find(item => item.type === 'text' && 'text' in item)
-          : null
+        "content" in result && Array.isArray(result.content)
+          ? result.content.find(
+              (item) => item.type === "text" && "text" in item,
+            )
+          : null;
 
       const rawMessage =
-        contentText && typeof (contentText as any).text === 'string'
+        contentText && typeof (contentText as any).text === "string"
           ? String((contentText as any).text)
-          : 'error' in result && result.error
+          : "error" in result && result.error
             ? String(result.error)
-            : ''
+            : "";
 
-      const message = rawMessage || `Error calling tool ${tool}`
-      logMCPError(name, `Error calling tool ${tool}: ${message}`)
-      throw new Error(message)
+      const message = rawMessage || `Error calling tool ${tool}`;
+      logMCPError(name, `Error calling tool ${tool}: ${message}`);
+      throw new Error(message);
     }
 
-    if ('toolResult' in result) {
-      return String(result.toolResult)
+    if ("toolResult" in result) {
+      return String(result.toolResult);
     }
 
     if (
-      'structuredContent' in result &&
+      "structuredContent" in result &&
       result.structuredContent !== undefined
     ) {
-      return JSON.stringify(result.structuredContent)
+      return JSON.stringify(result.structuredContent);
     }
 
-    if ('content' in result && Array.isArray(result.content)) {
-      return result.content.map(item => {
-        if (item.type === 'image') {
+    if ("content" in result && Array.isArray(result.content)) {
+      return result.content.map((item) => {
+        if (item.type === "image") {
           return {
-            type: 'image',
+            type: "image",
             source: {
-              type: 'base64',
+              type: "base64",
               data: String(item.data),
-              media_type: item.mimeType as ImageBlockParam.Source['media_type'],
+              media_type: item.mimeType as ImageBlockParam.Source["media_type"],
             },
-          }
+          };
         }
-        return item
-      })
+        return item;
+      });
     }
 
-    throw Error(`Unexpected response format from tool ${tool}`)
+    throw Error(`Unexpected response format from tool ${tool}`);
   } finally {
-    timeoutSignal?.cleanup()
+    timeoutSignal?.cleanup();
   }
 }
 
@@ -310,91 +312,91 @@ export const getMCPCommands = memoize(async (): Promise<Command[]> => {
     typeof ListPromptsResultSchema
   >(
     {
-      method: 'prompts/list',
+      method: "prompts/list",
     },
     ListPromptsResultSchema,
-    'prompts',
-  )
+    "prompts",
+  );
 
   return results.flatMap(({ client, result }) =>
-    result.prompts?.map(_ => {
-      const serverPart = sanitizeMcpIdentifierPart(client.name)
-      const argNames = Object.values(_.arguments ?? {}).map(k => k.name)
+    result.prompts?.map((_) => {
+      const serverPart = sanitizeMcpIdentifierPart(client.name);
+      const argNames = Object.values(_.arguments ?? {}).map((k) => k.name);
       return {
-        type: 'prompt',
+        type: "prompt",
         name: `mcp__${serverPart}__${_.name}`,
-        description: _.description ?? '',
+        description: _.description ?? "",
         isEnabled: true,
         isHidden: false,
-        progressMessage: 'running',
+        progressMessage: "running",
         userFacingName() {
           const title =
-            typeof (_ as any).title === 'string' ? (_ as any).title : _.name
-          return `${client.name}:${title} (MCP)`
+            typeof (_ as any).title === "string" ? (_ as any).title : _.name;
+          return `${client.name}:${title} (MCP)`;
         },
         argNames,
         async getPromptForCommand(args: string) {
-          const argsArray = args.split(' ')
+          const argsArray = args.split(" ");
           return await runCommand(
             { name: _.name, client },
             zipObject(argNames, argsArray),
-          )
+          );
         },
-      } satisfies Command
+      } satisfies Command;
     }),
-  )
-})
+  );
+});
 
 export async function runCommand(
   { name, client }: { name: string; client: ConnectedClient },
   args: Record<string, string>,
 ): Promise<MessageParam[]> {
   try {
-    const result = await client.client.getPrompt({ name, arguments: args })
+    const result = await client.client.getPrompt({ name, arguments: args });
     return result.messages.map((message): MessageParam => {
-      const content = message.content
-      if (content.type === 'text') {
+      const content = message.content;
+      if (content.type === "text") {
         return {
           role: message.role,
           content: [
             {
-              type: 'text',
+              type: "text",
               text: content.text,
             },
           ],
-        }
+        };
       }
-      if (content.type === 'image' && 'data' in content) {
+      if (content.type === "image" && "data" in content) {
         return {
           role: message.role,
           content: [
             {
-              type: 'image',
+              type: "image",
               source: {
                 data: String((content as any).data),
                 media_type: (content as any)
-                  .mimeType as ImageBlockParam.Source['media_type'],
-                type: 'base64',
+                  .mimeType as ImageBlockParam.Source["media_type"],
+                type: "base64",
               },
             },
           ],
-        }
+        };
       }
       return {
         role: message.role,
         content: [
           {
-            type: 'text',
-            text: `Unsupported MCP content type ${(content as any)?.type ?? 'unknown'}`,
+            type: "text",
+            text: `Unsupported MCP content type ${(content as any)?.type ?? "unknown"}`,
           },
         ],
-      }
-    })
+      };
+    });
   } catch (error) {
     logMCPError(
       client.name,
       `Error running command '${name}': ${error instanceof Error ? error.message : String(error)}`,
-    )
-    throw error
+    );
+    throw error;
   }
 }

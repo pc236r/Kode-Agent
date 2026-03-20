@@ -1,20 +1,20 @@
-import figures from 'figures'
-import { Box, Text } from 'ink'
-import React, { type ReactNode } from 'react'
-import { type Theme } from './theme'
-import { getTheme } from '@utils/theme'
+import figures from "figures";
+import { Box, Text } from "ink";
+import React, { type ReactNode } from "react";
+import { type Theme } from "./theme";
+import { getTheme } from "@utils/theme";
 
 export type SelectOptionProps = {
-  readonly isFocused: boolean
+  readonly isFocused: boolean;
 
-  readonly isSelected: boolean
+  readonly isSelected: boolean;
 
-  readonly smallPointer?: boolean
+  readonly smallPointer?: boolean;
 
-  readonly children: ReactNode
+  readonly children: ReactNode;
 
-  readonly key?: React.Key
-}
+  readonly key?: React.Key;
+};
 
 export function SelectOption({
   isFocused,
@@ -23,7 +23,7 @@ export function SelectOption({
   children,
   ...props
 }: SelectOptionProps) {
-  const appTheme = getTheme()
+  const appTheme = getTheme();
   const styles = {
     option: ({ isFocused }: { isFocused: boolean }) => ({
       paddingLeft: 2,
@@ -36,8 +36,8 @@ export function SelectOption({
       isFocused,
       isSelected,
     }: {
-      isFocused: boolean
-      isSelected: boolean
+      isFocused: boolean;
+      isSelected: boolean;
     }) => ({
       color: isSelected
         ? appTheme.success
@@ -49,7 +49,7 @@ export function SelectOption({
     selectedIndicator: () => ({
       color: appTheme.success,
     }),
-  }
+  };
 
   return (
     <Box {...styles.option({ isFocused })}>
@@ -65,5 +65,5 @@ export function SelectOption({
         <Text {...styles.selectedIndicator()}>{figures.tick}</Text>
       )}
     </Box>
-  )
+  );
 }

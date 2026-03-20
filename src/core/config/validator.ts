@@ -1,9 +1,9 @@
-import type { ModelPointerType, ModelProfile, ProviderType } from './schema'
-import { debug as debugLogger } from '@utils/log/debugLogger'
-import { getGlobalConfig, saveGlobalConfig } from './loader'
+import type { ModelPointerType, ModelProfile, ProviderType } from "./schema";
+import { debug as debugLogger } from "@utils/log/debugLogger";
+import { getGlobalConfig, saveGlobalConfig } from "./loader";
 
 export function setAllPointersToModel(modelName: string): void {
-  const config = getGlobalConfig()
+  const config = getGlobalConfig();
   const updatedConfig = {
     ...config,
     modelPointers: {
@@ -13,173 +13,173 @@ export function setAllPointersToModel(modelName: string): void {
       quick: modelName,
     },
     defaultModelName: modelName,
-  }
-  saveGlobalConfig(updatedConfig)
+  };
+  saveGlobalConfig(updatedConfig);
 }
 
 export function setModelPointer(
   pointer: ModelPointerType,
   modelName: string,
 ): void {
-  const config = getGlobalConfig()
+  const config = getGlobalConfig();
   const updatedConfig = {
     ...config,
     modelPointers: {
       ...config.modelPointers,
       [pointer]: modelName,
     },
-  }
-  saveGlobalConfig(updatedConfig)
+  };
+  saveGlobalConfig(updatedConfig);
 
-  import('../../utils/model').then(({ reloadModelManager }) => {
-    reloadModelManager()
-  })
+  import("../../utils/model").then(({ reloadModelManager }) => {
+    reloadModelManager();
+  });
 }
 
 export function isGPT5ModelName(modelName: string): boolean {
-  if (!modelName || typeof modelName !== 'string') return false
-  const lowerName = modelName.toLowerCase()
-  return lowerName.startsWith('gpt-5') || lowerName.includes('gpt-5')
+  if (!modelName || typeof modelName !== "string") return false;
+  const lowerName = modelName.toLowerCase();
+  return lowerName.startsWith("gpt-5") || lowerName.includes("gpt-5");
 }
 
 export function validateAndRepairGPT5Profile(
   profile: ModelProfile,
 ): ModelProfile {
-  const isGPT5 = isGPT5ModelName(profile.modelName)
-  const now = Date.now()
+  const isGPT5 = isGPT5ModelName(profile.modelName);
+  const now = Date.now();
 
-  const repairedProfile: ModelProfile = { ...profile }
-  let wasRepaired = false
+  const repairedProfile: ModelProfile = { ...profile };
+  let wasRepaired = false;
 
   if (isGPT5 !== profile.isGPT5) {
-    repairedProfile.isGPT5 = isGPT5
-    wasRepaired = true
+    repairedProfile.isGPT5 = isGPT5;
+    wasRepaired = true;
   }
 
   if (isGPT5) {
-    const validReasoningEfforts = ['minimal', 'low', 'medium', 'high']
+    const validReasoningEfforts = ["minimal", "low", "medium", "high"];
     if (
       !profile.reasoningEffort ||
       !validReasoningEfforts.includes(profile.reasoningEffort)
     ) {
-      repairedProfile.reasoningEffort = 'medium'
-      wasRepaired = true
-      debugLogger.state('GPT5_CONFIG_AUTO_REPAIR', {
+      repairedProfile.reasoningEffort = "medium";
+      wasRepaired = true;
+      debugLogger.state("GPT5_CONFIG_AUTO_REPAIR", {
         model: profile.modelName,
-        field: 'reasoningEffort',
-        value: 'medium',
-      })
+        field: "reasoningEffort",
+        value: "medium",
+      });
     }
 
     if (profile.contextLength < 128000) {
-      repairedProfile.contextLength = 128000
-      wasRepaired = true
-      debugLogger.state('GPT5_CONFIG_AUTO_REPAIR', {
+      repairedProfile.contextLength = 128000;
+      wasRepaired = true;
+      debugLogger.state("GPT5_CONFIG_AUTO_REPAIR", {
         model: profile.modelName,
-        field: 'contextLength',
+        field: "contextLength",
         value: 128000,
-      })
+      });
     }
 
     if (profile.maxTokens < 4000) {
-      repairedProfile.maxTokens = 8192
-      wasRepaired = true
-      debugLogger.state('GPT5_CONFIG_AUTO_REPAIR', {
+      repairedProfile.maxTokens = 8192;
+      wasRepaired = true;
+      debugLogger.state("GPT5_CONFIG_AUTO_REPAIR", {
         model: profile.modelName,
-        field: 'maxTokens',
+        field: "maxTokens",
         value: 8192,
-      })
+      });
     }
 
     if (
-      profile.provider !== 'openai' &&
-      profile.provider !== 'custom-openai' &&
-      profile.provider !== 'azure'
+      profile.provider !== "openai" &&
+      profile.provider !== "custom-openai" &&
+      profile.provider !== "azure"
     ) {
-      debugLogger.warn('GPT5_CONFIG_UNEXPECTED_PROVIDER', {
+      debugLogger.warn("GPT5_CONFIG_UNEXPECTED_PROVIDER", {
         model: profile.modelName,
         provider: profile.provider,
-        expectedProviders: ['openai', 'custom-openai', 'azure'],
-      })
+        expectedProviders: ["openai", "custom-openai", "azure"],
+      });
     }
 
-    if (profile.modelName.includes('gpt-5') && !profile.baseURL) {
-      repairedProfile.baseURL = 'https://api.openai.com/v1'
-      wasRepaired = true
-      debugLogger.state('GPT5_CONFIG_AUTO_REPAIR', {
+    if (profile.modelName.includes("gpt-5") && !profile.baseURL) {
+      repairedProfile.baseURL = "https://api.openai.com/v1";
+      wasRepaired = true;
+      debugLogger.state("GPT5_CONFIG_AUTO_REPAIR", {
         model: profile.modelName,
-        field: 'baseURL',
-        value: 'https://api.openai.com/v1',
-      })
+        field: "baseURL",
+        value: "https://api.openai.com/v1",
+      });
     }
   }
 
-  repairedProfile.validationStatus = wasRepaired ? 'auto_repaired' : 'valid'
-  repairedProfile.lastValidation = now
+  repairedProfile.validationStatus = wasRepaired ? "auto_repaired" : "valid";
+  repairedProfile.lastValidation = now;
 
   if (wasRepaired) {
-    debugLogger.info('GPT5_CONFIG_AUTO_REPAIRED', { model: profile.modelName })
+    debugLogger.info("GPT5_CONFIG_AUTO_REPAIRED", { model: profile.modelName });
   }
 
-  return repairedProfile
+  return repairedProfile;
 }
 
 export function validateAndRepairAllGPT5Profiles(): {
-  repaired: number
-  total: number
+  repaired: number;
+  total: number;
 } {
-  const config = getGlobalConfig()
+  const config = getGlobalConfig();
   if (!config.modelProfiles) {
-    return { repaired: 0, total: 0 }
+    return { repaired: 0, total: 0 };
   }
 
-  let repairCount = 0
-  const repairedProfiles = config.modelProfiles.map(profile => {
-    const repairedProfile = validateAndRepairGPT5Profile(profile)
-    if (repairedProfile.validationStatus === 'auto_repaired') {
-      repairCount++
+  let repairCount = 0;
+  const repairedProfiles = config.modelProfiles.map((profile) => {
+    const repairedProfile = validateAndRepairGPT5Profile(profile);
+    if (repairedProfile.validationStatus === "auto_repaired") {
+      repairCount++;
     }
-    return repairedProfile
-  })
+    return repairedProfile;
+  });
 
   if (repairCount > 0) {
     const updatedConfig = {
       ...config,
       modelProfiles: repairedProfiles,
-    }
-    saveGlobalConfig(updatedConfig)
-    debugLogger.info('GPT5_CONFIG_AUTO_REPAIR_SUMMARY', {
+    };
+    saveGlobalConfig(updatedConfig);
+    debugLogger.info("GPT5_CONFIG_AUTO_REPAIR_SUMMARY", {
       repaired: repairCount,
       total: config.modelProfiles.length,
-    })
+    });
   }
 
-  return { repaired: repairCount, total: config.modelProfiles.length }
+  return { repaired: repairCount, total: config.modelProfiles.length };
 }
 
 export function getGPT5ConfigRecommendations(
   modelName: string,
 ): Partial<ModelProfile> {
   if (!isGPT5ModelName(modelName)) {
-    return {}
+    return {};
   }
 
   const recommendations: Partial<ModelProfile> = {
     contextLength: 128000,
     maxTokens: 8192,
-    reasoningEffort: 'medium',
+    reasoningEffort: "medium",
     isGPT5: true,
+  };
+
+  if (modelName.includes("gpt-5-mini")) {
+    recommendations.maxTokens = 4096;
+    recommendations.reasoningEffort = "low";
+  } else if (modelName.includes("gpt-5-nano")) {
+    recommendations.maxTokens = 2048;
+    recommendations.reasoningEffort = "minimal";
   }
 
-  if (modelName.includes('gpt-5-mini')) {
-    recommendations.maxTokens = 4096
-    recommendations.reasoningEffort = 'low'
-  } else if (modelName.includes('gpt-5-nano')) {
-    recommendations.maxTokens = 2048
-    recommendations.reasoningEffort = 'minimal'
-  }
-
-  return recommendations
+  return recommendations;
 }
 
 export function createGPT5ModelProfile(
@@ -187,25 +187,25 @@ export function createGPT5ModelProfile(
   modelName: string,
   apiKey: string,
   baseURL?: string,
-  provider: ProviderType = 'openai',
+  provider: ProviderType = "openai",
 ): ModelProfile {
-  const recommendations = getGPT5ConfigRecommendations(modelName)
+  const recommendations = getGPT5ConfigRecommendations(modelName);
 
   const profile: ModelProfile = {
     name,
     provider,
     modelName,
-    baseURL: baseURL || 'https://api.openai.com/v1',
+    baseURL: baseURL || "https://api.openai.com/v1",
     apiKey,
     maxTokens: recommendations.maxTokens || 8192,
     contextLength: recommendations.contextLength || 128000,
-    reasoningEffort: recommendations.reasoningEffort || 'medium',
+    reasoningEffort: recommendations.reasoningEffort || "medium",
     isActive: true,
     createdAt: Date.now(),
     isGPT5: true,
-    validationStatus: 'valid',
+    validationStatus: "valid",
     lastValidation: Date.now(),
-  }
+  };
 
-  return profile
+  return profile;
 }

@@ -1,24 +1,24 @@
 let getMessages = () => [];
-let setMessages = () => { };
+let setMessages = () => {};
 export function setMessagesGetter(getter) {
-    getMessages = getter;
+  getMessages = getter;
 }
 export function getMessagesGetter() {
-    return getMessages;
+  return getMessages;
 }
 export function setMessagesSetter(setter) {
-    setMessages = setter;
+  setMessages = setter;
 }
 export function getMessagesSetter() {
-    return setMessages;
+  return setMessages;
 }
 let onModelConfigChange = null;
 export function setModelConfigChangeHandler(handler) {
-    onModelConfigChange = handler;
+  onModelConfigChange = handler;
 }
 export function triggerModelConfigChange() {
-    if (onModelConfigChange) {
-        onModelConfigChange();
-    }
+  if (onModelConfigChange) {
+    onModelConfigChange();
+  }
 }
 //# sourceMappingURL=messages.js.map

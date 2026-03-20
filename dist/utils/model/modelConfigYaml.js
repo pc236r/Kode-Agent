@@ -1,19 +1,19 @@
-import yaml from 'js-yaml';
-import { z } from 'zod';
+import yaml from "js-yaml";
+import { z } from "zod";
 const ApiKeySpecSchema = z.union([
-    z
-        .object({
-        fromEnv: z.string().min(1),
+  z
+    .object({
+      fromEnv: z.string().min(1),
     })
-        .strict(),
-    z
-        .object({
-        value: z.string(),
+    .strict(),
+  z
+    .object({
+      value: z.string(),
     })
-        .strict(),
+    .strict(),
 ]);
 const ModelProfileYamlSchema = z
-    .object({
+  .object({
     name: z.string().min(1),
     provider: z.string().min(1),
     modelName: z.string().min(1),
@@ -26,197 +26,214 @@ const ModelProfileYamlSchema = z
     apiKeyEnv: z.string().min(1).optional(),
     createdAt: z.number().int().positive().optional(),
     lastUsed: z.number().int().positive().optional(),
-})
-    .strict();
+  })
+  .strict();
 const ModelPointersYamlSchema = z
-    .object({
+  .object({
     main: z.string().min(1).optional(),
     task: z.string().min(1).optional(),
     compact: z.string().min(1).optional(),
     quick: z.string().min(1).optional(),
-})
-    .strict()
-    .optional();
+  })
+  .strict()
+  .optional();
 const ModelConfigYamlSchema = z
-    .object({
+  .object({
     version: z.number().int().positive().default(1),
     profiles: z.array(ModelProfileYamlSchema).default([]),
     pointers: ModelPointersYamlSchema,
-})
-    .strict();
+  })
+  .strict();
 function suggestedApiKeyEnvForProvider(provider) {
-    switch (provider) {
-        case 'anthropic':
-            return 'ANTHROPIC_API_KEY';
-        case 'openai':
-        case 'custom-openai':
-            return 'OPENAI_API_KEY';
-        case 'azure':
-            return 'AZURE_OPENAI_API_KEY';
-        case 'gemini':
-            return 'GEMINI_API_KEY';
-        default:
-            return undefined;
-    }
+  switch (provider) {
+    case "anthropic":
+      return "ANTHROPIC_API_KEY";
+    case "openai":
+    case "custom-openai":
+      return "OPENAI_API_KEY";
+    case "azure":
+      return "AZURE_OPENAI_API_KEY";
+    case "gemini":
+      return "GEMINI_API_KEY";
+    default:
+      return undefined;
+  }
 }
 function resolveApiKeyFromYaml(input, existingApiKey) {
-    const warnings = [];
-    if (input.apiKeyEnv) {
-        const envValue = process.env[input.apiKeyEnv];
-        if (envValue)
-            return { apiKey: envValue, warnings };
-        if (existingApiKey)
-            return { apiKey: existingApiKey, warnings };
-        warnings.push(`Missing env var '${input.apiKeyEnv}' for apiKey`);
-        return { apiKey: '', warnings };
-    }
-    if (input.apiKey && 'fromEnv' in input.apiKey) {
-        const envValue = process.env[input.apiKey.fromEnv];
-        if (envValue)
-            return { apiKey: envValue, warnings };
-        if (existingApiKey)
-            return { apiKey: existingApiKey, warnings };
-        warnings.push(`Missing env var '${input.apiKey.fromEnv}' for apiKey`);
-        return { apiKey: '', warnings };
-    }
-    if (input.apiKey && 'value' in input.apiKey) {
-        return { apiKey: input.apiKey.value, warnings };
-    }
-    if (existingApiKey)
-        return { apiKey: existingApiKey, warnings };
-    warnings.push('Missing apiKey (set apiKey.fromEnv, apiKeyEnv, or apiKey.value)');
-    return { apiKey: '', warnings };
+  const warnings = [];
+  if (input.apiKeyEnv) {
+    const envValue = process.env[input.apiKeyEnv];
+    if (envValue) return { apiKey: envValue, warnings };
+    if (existingApiKey) return { apiKey: existingApiKey, warnings };
+    warnings.push(`Missing env var '${input.apiKeyEnv}' for apiKey`);
+    return { apiKey: "", warnings };
+  }
+  if (input.apiKey && "fromEnv" in input.apiKey) {
+    const envValue = process.env[input.apiKey.fromEnv];
+    if (envValue) return { apiKey: envValue, warnings };
+    if (existingApiKey) return { apiKey: existingApiKey, warnings };
+    warnings.push(`Missing env var '${input.apiKey.fromEnv}' for apiKey`);
+    return { apiKey: "", warnings };
+  }
+  if (input.apiKey && "value" in input.apiKey) {
+    return { apiKey: input.apiKey.value, warnings };
+  }
+  if (existingApiKey) return { apiKey: existingApiKey, warnings };
+  warnings.push(
+    "Missing apiKey (set apiKey.fromEnv, apiKeyEnv, or apiKey.value)",
+  );
+  return { apiKey: "", warnings };
 }
 function resolvePointerTarget(pointerValue, profiles) {
-    if (profiles.some(p => p.modelName === pointerValue))
-        return pointerValue;
-    const byName = profiles.find(p => p.name === pointerValue);
-    return byName?.modelName ?? null;
+  if (profiles.some((p) => p.modelName === pointerValue)) return pointerValue;
+  const byName = profiles.find((p) => p.name === pointerValue);
+  return byName?.modelName ?? null;
 }
 export function parseModelConfigYaml(yamlText) {
-    const parsed = yaml.load(yamlText);
-    return ModelConfigYamlSchema.parse(parsed);
+  const parsed = yaml.load(yamlText);
+  return ModelConfigYamlSchema.parse(parsed);
 }
 export function formatModelConfigYamlForSharing(config) {
-    const modelProfiles = config.modelProfiles ?? [];
-    const pointers = config.modelPointers;
-    const exported = {
-        version: 1,
-        profiles: modelProfiles.map(p => {
-            const suggestedEnv = suggestedApiKeyEnvForProvider(p.provider);
-            return {
-                name: p.name,
-                provider: p.provider,
-                modelName: p.modelName,
-                ...(p.baseURL ? { baseURL: p.baseURL } : {}),
-                maxTokens: p.maxTokens,
-                contextLength: p.contextLength,
-                ...(p.reasoningEffort ? { reasoningEffort: p.reasoningEffort } : {}),
-                isActive: p.isActive,
-                createdAt: p.createdAt,
-                ...(typeof p.lastUsed === 'number' ? { lastUsed: p.lastUsed } : {}),
-                apiKey: { fromEnv: suggestedEnv ?? 'API_KEY' },
-            };
-        }),
-        ...(pointers ? { pointers } : {}),
-    };
-    return yaml.dump(exported, {
-        noRefs: true,
-        lineWidth: 120,
-    });
+  const modelProfiles = config.modelProfiles ?? [];
+  const pointers = config.modelPointers;
+  const exported = {
+    version: 1,
+    profiles: modelProfiles.map((p) => {
+      const suggestedEnv = suggestedApiKeyEnvForProvider(p.provider);
+      return {
+        name: p.name,
+        provider: p.provider,
+        modelName: p.modelName,
+        ...(p.baseURL ? { baseURL: p.baseURL } : {}),
+        maxTokens: p.maxTokens,
+        contextLength: p.contextLength,
+        ...(p.reasoningEffort ? { reasoningEffort: p.reasoningEffort } : {}),
+        isActive: p.isActive,
+        createdAt: p.createdAt,
+        ...(typeof p.lastUsed === "number" ? { lastUsed: p.lastUsed } : {}),
+        apiKey: { fromEnv: suggestedEnv ?? "API_KEY" },
+      };
+    }),
+    ...(pointers ? { pointers } : {}),
+  };
+  return yaml.dump(exported, {
+    noRefs: true,
+    lineWidth: 120,
+  });
 }
-export function applyModelConfigYamlImport(existingConfig, yamlText, options = {}) {
-    const parsed = parseModelConfigYaml(yamlText);
-    const warnings = [];
-    const existingProfiles = existingConfig.modelProfiles ?? [];
-    const existingByModelName = new Map(existingProfiles.map(p => [p.modelName, p]));
-    const now = Date.now();
-    const importedProfiles = parsed.profiles.map(profile => {
-        const existing = existingByModelName.get(profile.modelName);
-        const resolved = resolveApiKeyFromYaml({ apiKey: profile.apiKey, apiKeyEnv: profile.apiKeyEnv }, existing?.apiKey);
-        warnings.push(...resolved.warnings.map(w => `[${profile.modelName}] ${w}`));
-        return {
-            name: profile.name,
-            provider: profile.provider,
-            modelName: profile.modelName,
-            ...(profile.baseURL ? { baseURL: profile.baseURL } : {}),
-            apiKey: resolved.apiKey,
-            maxTokens: profile.maxTokens,
-            contextLength: profile.contextLength,
-            ...(profile.reasoningEffort
-                ? { reasoningEffort: profile.reasoningEffort }
-                : {}),
-            isActive: profile.isActive ?? true,
-            createdAt: profile.createdAt ?? existing?.createdAt ?? now,
-            ...(profile.lastUsed
-                ? { lastUsed: profile.lastUsed }
-                : existing?.lastUsed
-                    ? { lastUsed: existing.lastUsed }
-                    : {}),
-            ...(existing?.isGPT5 ? { isGPT5: existing.isGPT5 } : {}),
-            ...(existing?.validationStatus
-                ? { validationStatus: existing.validationStatus }
-                : {}),
-            ...(existing?.lastValidation
-                ? { lastValidation: existing.lastValidation }
-                : {}),
-        };
-    });
-    const mergedProfiles = options.replace
-        ? importedProfiles
-        : [
-            ...existingProfiles.filter(p => !importedProfiles.some(i => i.modelName === p.modelName)),
-            ...importedProfiles,
-        ];
-    const nextPointers = {
-        ...(existingConfig.modelPointers ?? {
-            main: '',
-            task: '',
-            compact: '',
-            quick: '',
-        }),
-    };
-    if (parsed.pointers) {
-        const resolvedMain = parsed.pointers.main &&
-            resolvePointerTarget(parsed.pointers.main, mergedProfiles);
-        const resolvedTask = parsed.pointers.task &&
-            resolvePointerTarget(parsed.pointers.task, mergedProfiles);
-        const resolvedCompact = parsed.pointers.compact &&
-            resolvePointerTarget(parsed.pointers.compact, mergedProfiles);
-        const resolvedQuick = parsed.pointers.quick &&
-            resolvePointerTarget(parsed.pointers.quick, mergedProfiles);
-        if (parsed.pointers.main && !resolvedMain) {
-            warnings.push(`[pointers.main] Unknown model '${parsed.pointers.main}' (expected modelName or profile name)`);
-        }
-        else if (resolvedMain) {
-            nextPointers.main = resolvedMain;
-        }
-        if (parsed.pointers.task && !resolvedTask) {
-            warnings.push(`[pointers.task] Unknown model '${parsed.pointers.task}' (expected modelName or profile name)`);
-        }
-        else if (resolvedTask) {
-            nextPointers.task = resolvedTask;
-        }
-        if (parsed.pointers.compact && !resolvedCompact) {
-            warnings.push(`[pointers.compact] Unknown model '${parsed.pointers.compact}' (expected modelName or profile name)`);
-        }
-        else if (resolvedCompact) {
-            nextPointers.compact = resolvedCompact;
-        }
-        if (parsed.pointers.quick && !resolvedQuick) {
-            warnings.push(`[pointers.quick] Unknown model '${parsed.pointers.quick}' (expected modelName or profile name)`);
-        }
-        else if (resolvedQuick) {
-            nextPointers.quick = resolvedQuick;
-        }
-    }
+export function applyModelConfigYamlImport(
+  existingConfig,
+  yamlText,
+  options = {},
+) {
+  const parsed = parseModelConfigYaml(yamlText);
+  const warnings = [];
+  const existingProfiles = existingConfig.modelProfiles ?? [];
+  const existingByModelName = new Map(
+    existingProfiles.map((p) => [p.modelName, p]),
+  );
+  const now = Date.now();
+  const importedProfiles = parsed.profiles.map((profile) => {
+    const existing = existingByModelName.get(profile.modelName);
+    const resolved = resolveApiKeyFromYaml(
+      { apiKey: profile.apiKey, apiKeyEnv: profile.apiKeyEnv },
+      existing?.apiKey,
+    );
+    warnings.push(
+      ...resolved.warnings.map((w) => `[${profile.modelName}] ${w}`),
+    );
     return {
-        nextConfig: {
-            ...existingConfig,
-            modelProfiles: mergedProfiles,
-            modelPointers: nextPointers,
-        },
-        warnings,
+      name: profile.name,
+      provider: profile.provider,
+      modelName: profile.modelName,
+      ...(profile.baseURL ? { baseURL: profile.baseURL } : {}),
+      apiKey: resolved.apiKey,
+      maxTokens: profile.maxTokens,
+      contextLength: profile.contextLength,
+      ...(profile.reasoningEffort
+        ? { reasoningEffort: profile.reasoningEffort }
+        : {}),
+      isActive: profile.isActive ?? true,
+      createdAt: profile.createdAt ?? existing?.createdAt ?? now,
+      ...(profile.lastUsed
+        ? { lastUsed: profile.lastUsed }
+        : existing?.lastUsed
+          ? { lastUsed: existing.lastUsed }
+          : {}),
+      ...(existing?.isGPT5 ? { isGPT5: existing.isGPT5 } : {}),
+      ...(existing?.validationStatus
+        ? { validationStatus: existing.validationStatus }
+        : {}),
+      ...(existing?.lastValidation
+        ? { lastValidation: existing.lastValidation }
+        : {}),
     };
+  });
+  const mergedProfiles = options.replace
+    ? importedProfiles
+    : [
+        ...existingProfiles.filter(
+          (p) => !importedProfiles.some((i) => i.modelName === p.modelName),
+        ),
+        ...importedProfiles,
+      ];
+  const nextPointers = {
+    ...(existingConfig.modelPointers ?? {
+      main: "",
+      task: "",
+      compact: "",
+      quick: "",
+    }),
+  };
+  if (parsed.pointers) {
+    const resolvedMain =
+      parsed.pointers.main &&
+      resolvePointerTarget(parsed.pointers.main, mergedProfiles);
+    const resolvedTask =
+      parsed.pointers.task &&
+      resolvePointerTarget(parsed.pointers.task, mergedProfiles);
+    const resolvedCompact =
+      parsed.pointers.compact &&
+      resolvePointerTarget(parsed.pointers.compact, mergedProfiles);
+    const resolvedQuick =
+      parsed.pointers.quick &&
+      resolvePointerTarget(parsed.pointers.quick, mergedProfiles);
+    if (parsed.pointers.main && !resolvedMain) {
+      warnings.push(
+        `[pointers.main] Unknown model '${parsed.pointers.main}' (expected modelName or profile name)`,
+      );
+    } else if (resolvedMain) {
+      nextPointers.main = resolvedMain;
+    }
+    if (parsed.pointers.task && !resolvedTask) {
+      warnings.push(
+        `[pointers.task] Unknown model '${parsed.pointers.task}' (expected modelName or profile name)`,
+      );
+    } else if (resolvedTask) {
+      nextPointers.task = resolvedTask;
+    }
+    if (parsed.pointers.compact && !resolvedCompact) {
+      warnings.push(
+        `[pointers.compact] Unknown model '${parsed.pointers.compact}' (expected modelName or profile name)`,
+      );
+    } else if (resolvedCompact) {
+      nextPointers.compact = resolvedCompact;
+    }
+    if (parsed.pointers.quick && !resolvedQuick) {
+      warnings.push(
+        `[pointers.quick] Unknown model '${parsed.pointers.quick}' (expected modelName or profile name)`,
+      );
+    } else if (resolvedQuick) {
+      nextPointers.quick = resolvedQuick;
+    }
+  }
+  return {
+    nextConfig: {
+      ...existingConfig,
+      modelProfiles: mergedProfiles,
+      modelPointers: nextPointers,
+    },
+    warnings,
+  };
 }
 //# sourceMappingURL=modelConfigYaml.js.map

@@ -1,32 +1,32 @@
-import { Message } from '@query'
-import { countTokens } from '@utils/model/tokens'
-import { getMessagesGetter, getMessagesSetter } from '@messages'
-import { getContext } from '@context'
-import { getCodeStyle } from '@utils/config/style'
-import { clearTerminal } from '@utils/terminal'
-import { resetFileFreshnessSession } from '@services/fileFreshness'
-import { createUserMessage, normalizeMessagesForAPI } from '@utils/messages'
-import { queryLLM } from '@services/llmLazy'
-import { selectAndReadFiles } from './fileRecoveryCore'
-import { addLineNumbers } from '@utils/fs/file'
-import { getModelManager } from '@utils/model'
-import { debug as debugLogger } from '@utils/log/debugLogger'
-import { logError } from '@utils/log'
-import { calculateAutoCompactThresholds } from './autoCompactThreshold'
+import { Message } from "@query";
+import { countTokens } from "@utils/model/tokens";
+import { getMessagesGetter, getMessagesSetter } from "@messages";
+import { getContext } from "@context";
+import { getCodeStyle } from "@utils/config/style";
+import { clearTerminal } from "@utils/terminal";
+import { resetFileFreshnessSession } from "@services/fileFreshness";
+import { createUserMessage, normalizeMessagesForAPI } from "@utils/messages";
+import { queryLLM } from "@services/llmLazy";
+import { selectAndReadFiles } from "./fileRecoveryCore";
+import { addLineNumbers } from "@utils/fs/file";
+import { getModelManager } from "@utils/model";
+import { debug as debugLogger } from "@utils/log/debugLogger";
+import { logError } from "@utils/log";
+import { calculateAutoCompactThresholds } from "./autoCompactThreshold";
 
 async function getMainConversationContextLimit(): Promise<number> {
   try {
-    const modelManager = getModelManager()
-    const resolution = modelManager.resolveModelWithInfo('main')
-    const modelProfile = resolution.success ? resolution.profile : null
+    const modelManager = getModelManager();
+    const resolution = modelManager.resolveModelWithInfo("main");
+    const modelProfile = resolution.success ? resolution.profile : null;
 
     if (modelProfile?.contextLength) {
-      return modelProfile.contextLength
+      return modelProfile.contextLength;
     }
 
-    return 200_000
+    return 200_000;
   } catch (error) {
-    return 200_000
+    return 200_000;
   }
 }
 
@@ -56,20 +56,20 @@ Coding style, formatting, and organizational preferences. Communication patterns
 ## Key Decisions
 Important technical decisions made and their rationale. Alternative approaches considered and why they were rejected. Trade-offs accepted and their implications.
 
-Focus on information essential for continuing the conversation effectively, including specific details about code, files, errors, and plans.`
+Focus on information essential for continuing the conversation effectively, including specific details about code, files, errors, and plans.`;
 
 async function calculateThresholds(tokenCount: number) {
-  const contextLimit = await getMainConversationContextLimit()
-  return calculateAutoCompactThresholds(tokenCount, contextLimit)
+  const contextLimit = await getMainConversationContextLimit();
+  return calculateAutoCompactThresholds(tokenCount, contextLimit);
 }
 
 async function shouldAutoCompact(messages: Message[]): Promise<boolean> {
-  if (messages.length < 3) return false
+  if (messages.length < 3) return false;
 
-  const tokenCount = countTokens(messages)
-  const { isAboveAutoCompactThreshold } = await calculateThresholds(tokenCount)
+  const tokenCount = countTokens(messages);
+  const { isAboveAutoCompactThreshold } = await calculateThresholds(tokenCount);
 
-  return isAboveAutoCompactThreshold
+  return isAboveAutoCompactThreshold;
 }
 
 export async function checkAutoCompact(
@@ -77,22 +77,25 @@ export async function checkAutoCompact(
   toolUseContext: any,
 ): Promise<{ messages: Message[]; wasCompacted: boolean }> {
   if (!(await shouldAutoCompact(messages))) {
-    return { messages, wasCompacted: false }
+    return { messages, wasCompacted: false };
   }
 
   try {
-    const compactedMessages = await executeAutoCompact(messages, toolUseContext)
+    const compactedMessages = await executeAutoCompact(
+      messages,
+      toolUseContext,
+    );
 
     return {
       messages: compactedMessages,
       wasCompacted: true,
-    }
+    };
   } catch (error) {
-    logError(error)
-    debugLogger.warn('AUTO_COMPACT_FAILED', {
+    logError(error);
+    debugLogger.warn("AUTO_COMPACT_FAILED", {
       error: error instanceof Error ? error.message : String(error),
-    })
-    return { messages, wasCompacted: false }
+    });
+    return { messages, wasCompacted: false };
   }
 }
 
@@ -100,45 +103,45 @@ async function executeAutoCompact(
   messages: Message[],
   toolUseContext: any,
 ): Promise<Message[]> {
-  const summaryRequest = createUserMessage(COMPRESSION_PROMPT)
+  const summaryRequest = createUserMessage(COMPRESSION_PROMPT);
 
-  const tokenCount = countTokens(messages)
-  const modelManager = getModelManager()
-  const compactResolution = modelManager.resolveModelWithInfo('compact')
-  const mainResolution = modelManager.resolveModelWithInfo('main')
+  const tokenCount = countTokens(messages);
+  const modelManager = getModelManager();
+  const compactResolution = modelManager.resolveModelWithInfo("compact");
+  const mainResolution = modelManager.resolveModelWithInfo("main");
 
-  let compressionModelPointer: 'compact' | 'main' = 'compact'
-  let compressionNotice: string | null = null
+  let compressionModelPointer: "compact" | "main" = "compact";
+  let compressionNotice: string | null = null;
 
   if (!compactResolution.success || !compactResolution.profile) {
-    compressionModelPointer = 'main'
+    compressionModelPointer = "main";
     compressionNotice =
       compactResolution.error ||
-      "Compression model pointer 'compact' is not configured."
+      "Compression model pointer 'compact' is not configured.";
   } else {
     const compactBudget = Math.floor(
       compactResolution.profile.contextLength * 0.9,
-    )
+    );
     if (compactBudget > 0 && tokenCount > compactBudget) {
-      compressionModelPointer = 'main'
-      compressionNotice = `Compression model '${compactResolution.profile.name}' does not fit current context (~${Math.round(tokenCount / 1000)}k tokens).`
+      compressionModelPointer = "main";
+      compressionNotice = `Compression model '${compactResolution.profile.name}' does not fit current context (~${Math.round(tokenCount / 1000)}k tokens).`;
     }
   }
 
   if (
-    compressionModelPointer === 'main' &&
+    compressionModelPointer === "main" &&
     (!mainResolution.success || !mainResolution.profile)
   ) {
     throw new Error(
       mainResolution.error ||
         "Compression fallback failed: model pointer 'main' is not configured.",
-    )
+    );
   }
 
   const summaryResponse = await queryLLM(
     normalizeMessagesForAPI([...messages, summaryRequest]),
     [
-      'You are a helpful AI assistant tasked with creating comprehensive conversation summaries that preserve all essential context for continuing development work.',
+      "You are a helpful AI assistant tasked with creating comprehensive conversation summaries that preserve all essential context for continuing development work.",
     ],
     0,
     [],
@@ -148,20 +151,20 @@ async function executeAutoCompact(
       model: compressionModelPointer,
       prependCLISysprompt: true,
     },
-  )
+  );
 
-  const content = summaryResponse.message.content
+  const content = summaryResponse.message.content;
   const summary =
-    typeof content === 'string'
+    typeof content === "string"
       ? content
-      : content.length > 0 && content[0]?.type === 'text'
+      : content.length > 0 && content[0]?.type === "text"
         ? content[0].text
-        : null
+        : null;
 
   if (!summary) {
     throw new Error(
-      'Failed to generate conversation summary - response did not contain valid text content',
-    )
+      "Failed to generate conversation summary - response did not contain valid text content",
+    );
   }
 
   summaryResponse.message.usage = {
@@ -169,9 +172,9 @@ async function executeAutoCompact(
     output_tokens: summaryResponse.message.usage.output_tokens,
     cache_creation_input_tokens: 0,
     cache_read_input_tokens: 0,
-  }
+  };
 
-  const recoveredFiles = await selectAndReadFiles()
+  const recoveredFiles = await selectAndReadFiles();
 
   const compactedMessages = [
     createUserMessage(
@@ -180,26 +183,26 @@ async function executeAutoCompact(
         : `Context automatically compressed due to token limit. Using '${compressionModelPointer}' for compression.`,
     ),
     summaryResponse,
-  ]
+  ];
 
   if (recoveredFiles.length > 0) {
     for (const file of recoveredFiles) {
       const contentWithLines = addLineNumbers({
         content: file.content,
         startLine: 1,
-      })
+      });
       const recoveryMessage = createUserMessage(
         `**Recovered File: ${file.path}**\n\n\`\`\`\n${contentWithLines}\n\`\`\`\n\n` +
-          `*Automatically recovered (${file.tokens} tokens)${file.truncated ? ' [truncated]' : ''}*`,
-      )
-      compactedMessages.push(recoveryMessage)
+          `*Automatically recovered (${file.tokens} tokens)${file.truncated ? " [truncated]" : ""}*`,
+      );
+      compactedMessages.push(recoveryMessage);
     }
   }
 
-  getMessagesSetter()([])
-  getContext.cache.clear?.()
-  getCodeStyle.cache.clear?.()
-  resetFileFreshnessSession()
+  getMessagesSetter()([]);
+  getContext.cache.clear?.();
+  getCodeStyle.cache.clear?.();
+  resetFileFreshnessSession();
 
-  return compactedMessages
+  return compactedMessages;
 }

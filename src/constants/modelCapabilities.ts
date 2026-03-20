@@ -1,18 +1,18 @@
-import { ModelCapabilities } from '@kode-types/modelCapabilities'
+import { ModelCapabilities } from "@kode-types/modelCapabilities";
 
 const GPT5_CAPABILITIES: ModelCapabilities = {
   apiArchitecture: {
-    primary: 'responses_api',
-    fallback: 'chat_completions',
+    primary: "responses_api",
+    fallback: "chat_completions",
   },
   parameters: {
-    maxTokensField: 'max_output_tokens',
+    maxTokensField: "max_output_tokens",
     supportsReasoningEffort: true,
     supportsVerbosity: true,
-    temperatureMode: 'fixed_one',
+    temperatureMode: "fixed_one",
   },
   toolCalling: {
-    mode: 'custom_tools',
+    mode: "custom_tools",
     supportsFreeform: true,
     supportsAllowedTools: true,
     supportsParallelCalls: true,
@@ -26,20 +26,20 @@ const GPT5_CAPABILITIES: ModelCapabilities = {
     supported: true,
     includesUsage: true,
   },
-}
+};
 
 const CHAT_COMPLETIONS_CAPABILITIES: ModelCapabilities = {
   apiArchitecture: {
-    primary: 'chat_completions',
+    primary: "chat_completions",
   },
   parameters: {
-    maxTokensField: 'max_tokens',
+    maxTokensField: "max_tokens",
     supportsReasoningEffort: false,
     supportsVerbosity: false,
-    temperatureMode: 'flexible',
+    temperatureMode: "flexible",
   },
   toolCalling: {
-    mode: 'function_calling',
+    mode: "function_calling",
     supportsFreeform: false,
     supportsAllowedTools: false,
     supportsParallelCalls: true,
@@ -53,112 +53,112 @@ const CHAT_COMPLETIONS_CAPABILITIES: ModelCapabilities = {
     supported: true,
     includesUsage: true,
   },
-}
+};
 
 export const MODEL_CAPABILITIES_REGISTRY: Record<string, ModelCapabilities> = {
-  'gpt-5': GPT5_CAPABILITIES,
-  'gpt-5-mini': GPT5_CAPABILITIES,
-  'gpt-5-nano': GPT5_CAPABILITIES,
-  'gpt-5-chat-latest': GPT5_CAPABILITIES,
-  'gpt-5-codex': GPT5_CAPABILITIES,
+  "gpt-5": GPT5_CAPABILITIES,
+  "gpt-5-mini": GPT5_CAPABILITIES,
+  "gpt-5-nano": GPT5_CAPABILITIES,
+  "gpt-5-chat-latest": GPT5_CAPABILITIES,
+  "gpt-5-codex": GPT5_CAPABILITIES,
 
-  'gpt-4o': CHAT_COMPLETIONS_CAPABILITIES,
-  'gpt-4o-mini': CHAT_COMPLETIONS_CAPABILITIES,
-  'gpt-4-turbo': CHAT_COMPLETIONS_CAPABILITIES,
-  'gpt-4': CHAT_COMPLETIONS_CAPABILITIES,
+  "gpt-4o": CHAT_COMPLETIONS_CAPABILITIES,
+  "gpt-4o-mini": CHAT_COMPLETIONS_CAPABILITIES,
+  "gpt-4-turbo": CHAT_COMPLETIONS_CAPABILITIES,
+  "gpt-4": CHAT_COMPLETIONS_CAPABILITIES,
 
-  'claude-3-5-sonnet-20241022': CHAT_COMPLETIONS_CAPABILITIES,
-  'claude-3-5-haiku-20241022': CHAT_COMPLETIONS_CAPABILITIES,
-  'claude-3-opus-20240229': CHAT_COMPLETIONS_CAPABILITIES,
+  "claude-3-5-sonnet-20241022": CHAT_COMPLETIONS_CAPABILITIES,
+  "claude-3-5-haiku-20241022": CHAT_COMPLETIONS_CAPABILITIES,
+  "claude-3-opus-20240229": CHAT_COMPLETIONS_CAPABILITIES,
 
   o1: {
     ...CHAT_COMPLETIONS_CAPABILITIES,
     parameters: {
       ...CHAT_COMPLETIONS_CAPABILITIES.parameters,
-      maxTokensField: 'max_completion_tokens',
-      temperatureMode: 'fixed_one',
+      maxTokensField: "max_completion_tokens",
+      temperatureMode: "fixed_one",
     },
   },
-  'o1-mini': {
+  "o1-mini": {
     ...CHAT_COMPLETIONS_CAPABILITIES,
     parameters: {
       ...CHAT_COMPLETIONS_CAPABILITIES.parameters,
-      maxTokensField: 'max_completion_tokens',
-      temperatureMode: 'fixed_one',
+      maxTokensField: "max_completion_tokens",
+      temperatureMode: "fixed_one",
     },
   },
-  'o1-preview': {
+  "o1-preview": {
     ...CHAT_COMPLETIONS_CAPABILITIES,
     parameters: {
       ...CHAT_COMPLETIONS_CAPABILITIES.parameters,
-      maxTokensField: 'max_completion_tokens',
-      temperatureMode: 'fixed_one',
+      maxTokensField: "max_completion_tokens",
+      temperatureMode: "fixed_one",
     },
   },
-}
+};
 
 export function inferModelCapabilities(
   modelName: string,
 ): ModelCapabilities | null {
-  if (!modelName) return null
+  if (!modelName) return null;
 
-  const lowerName = modelName.toLowerCase()
+  const lowerName = modelName.toLowerCase();
 
-  if (lowerName.includes('gpt-5') || lowerName.includes('gpt5')) {
-    return GPT5_CAPABILITIES
+  if (lowerName.includes("gpt-5") || lowerName.includes("gpt5")) {
+    return GPT5_CAPABILITIES;
   }
 
-  if (lowerName.includes('gpt-6') || lowerName.includes('gpt6')) {
+  if (lowerName.includes("gpt-6") || lowerName.includes("gpt6")) {
     return {
       ...GPT5_CAPABILITIES,
       streaming: { supported: true, includesUsage: true },
-    }
+    };
   }
 
-  if (lowerName.includes('glm-5') || lowerName.includes('glm5')) {
+  if (lowerName.includes("glm-5") || lowerName.includes("glm5")) {
     return {
       ...CHAT_COMPLETIONS_CAPABILITIES,
       toolCalling: {
         ...CHAT_COMPLETIONS_CAPABILITIES.toolCalling,
         supportsAllowedTools: false,
       },
-    }
+    };
   }
 
-  if (lowerName.startsWith('o1') || lowerName.includes('o1-')) {
+  if (lowerName.startsWith("o1") || lowerName.includes("o1-")) {
     return {
       ...CHAT_COMPLETIONS_CAPABILITIES,
       parameters: {
         ...CHAT_COMPLETIONS_CAPABILITIES.parameters,
-        maxTokensField: 'max_completion_tokens',
-        temperatureMode: 'fixed_one',
+        maxTokensField: "max_completion_tokens",
+        temperatureMode: "fixed_one",
       },
-    }
+    };
   }
 
-  return null
+  return null;
 }
 
-const capabilityCache = new Map<string, ModelCapabilities>()
+const capabilityCache = new Map<string, ModelCapabilities>();
 
 export function getModelCapabilities(modelName: string): ModelCapabilities {
   if (capabilityCache.has(modelName)) {
-    return capabilityCache.get(modelName)!
+    return capabilityCache.get(modelName)!;
   }
 
   if (MODEL_CAPABILITIES_REGISTRY[modelName]) {
-    const capabilities = MODEL_CAPABILITIES_REGISTRY[modelName]
-    capabilityCache.set(modelName, capabilities)
-    return capabilities
+    const capabilities = MODEL_CAPABILITIES_REGISTRY[modelName];
+    capabilityCache.set(modelName, capabilities);
+    return capabilities;
   }
 
-  const inferred = inferModelCapabilities(modelName)
+  const inferred = inferModelCapabilities(modelName);
   if (inferred) {
-    capabilityCache.set(modelName, inferred)
-    return inferred
+    capabilityCache.set(modelName, inferred);
+    return inferred;
   }
 
-  const defaultCapabilities = CHAT_COMPLETIONS_CAPABILITIES
-  capabilityCache.set(modelName, defaultCapabilities)
-  return defaultCapabilities
+  const defaultCapabilities = CHAT_COMPLETIONS_CAPABILITIES;
+  capabilityCache.set(modelName, defaultCapabilities);
+  return defaultCapabilities;
 }

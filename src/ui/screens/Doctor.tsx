@@ -1,31 +1,31 @@
-import React, { useEffect, useState } from 'react'
-import { Box, Text, useInput } from 'ink'
-import { getTheme } from '@utils/theme'
-import { PressEnterToContinue } from '@components/PressEnterToContinue'
+import React, { useEffect, useState } from "react";
+import { Box, Text, useInput } from "ink";
+import { getTheme } from "@utils/theme";
+import { PressEnterToContinue } from "@components/PressEnterToContinue";
 
 type Props = {
-  onDone: () => void
-  doctorMode?: boolean
-}
+  onDone: () => void;
+  doctorMode?: boolean;
+};
 
 export function Doctor({ onDone, doctorMode = false }: Props): React.ReactNode {
-  const [checked, setChecked] = useState(false)
-  const theme = getTheme()
+  const [checked, setChecked] = useState(false);
+  const theme = getTheme();
 
   useEffect(() => {
-    setChecked(true)
-  }, [])
+    setChecked(true);
+  }, []);
 
   useInput((_input, key) => {
-    if (key.return) onDone()
-  })
+    if (key.return) onDone();
+  });
 
   if (!checked) {
     return (
       <Box paddingX={1} paddingTop={1}>
         <Text color={theme.secondaryText}>Running checks…</Text>
       </Box>
-    )
+    );
   }
   return (
     <Box flexDirection="column" gap={1} paddingX={1} paddingTop={1}>
@@ -35,5 +35,5 @@ export function Doctor({ onDone, doctorMode = false }: Props): React.ReactNode {
       </Text>
       <PressEnterToContinue />
     </Box>
-  )
+  );
 }

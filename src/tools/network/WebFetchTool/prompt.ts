@@ -1,4 +1,4 @@
-export const TOOL_NAME_FOR_PROMPT = 'WebFetch'
+export const TOOL_NAME_FOR_PROMPT = "WebFetch";
 export const PROMPT = `
 - Fetches content from a specified URL and processes it using an AI model
 - Takes a URL and a prompt as input
@@ -16,4 +16,4 @@ Usage notes:
   - Results may be summarized if the content is very large
   - Includes a self-cleaning 15-minute cache for faster responses when repeatedly accessing the same URL
   - When a URL redirects to a different host, the tool will inform you and provide the redirect URL in a special format. You should then make a new WebFetch request with the redirect URL to fetch the content.
-`.trim()
+`.trim();

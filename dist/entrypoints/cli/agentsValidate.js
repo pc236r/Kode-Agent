@@ -1,411 +1,394 @@
-import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
-import { homedir } from 'node:os';
-import { basename, dirname, join, resolve } from 'node:path';
-import matter from 'gray-matter';
-import yaml from 'js-yaml';
-import { getModelManager } from '@utils/model';
+import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
+import { homedir } from "node:os";
+import { basename, dirname, join, resolve } from "node:path";
+import matter from "gray-matter";
+import yaml from "js-yaml";
+import { getModelManager } from "@utils/model";
 const VALID_PERMISSION_MODES = new Set([
-    'default',
-    'acceptEdits',
-    'plan',
-    'bypassPermissions',
-    'dontAsk',
-    'delegate',
+  "default",
+  "acceptEdits",
+  "plan",
+  "bypassPermissions",
+  "dontAsk",
+  "delegate",
 ]);
 const SUBAGENT_HARD_BLOCKED_TOOLS = new Set([
-    'Task',
-    'TaskOutput',
-    'KillShell',
-    'EnterPlanMode',
-    'ExitPlanMode',
-    'AskUserQuestion',
+  "Task",
+  "TaskOutput",
+  "KillShell",
+  "EnterPlanMode",
+  "ExitPlanMode",
+  "AskUserQuestion",
 ]);
 function normalizeString(value) {
-    if (typeof value !== 'string')
-        return null;
-    const trimmed = value.trim();
-    return trimmed ? trimmed : null;
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  return trimmed ? trimmed : null;
 }
 function getClaudePolicyBaseDir() {
-    switch (process.platform) {
-        case 'darwin':
-            return '/Library/Application Support/ClaudeCode';
-        case 'win32':
-            return existsSync('C:\\Program Files\\ClaudeCode')
-                ? 'C:\\Program Files\\ClaudeCode'
-                : 'C:\\ProgramData\\ClaudeCode';
-        default:
-            return '/etc/claude-code';
-    }
+  switch (process.platform) {
+    case "darwin":
+      return "/Library/Application Support/ClaudeCode";
+    case "win32":
+      return existsSync("C:\\Program Files\\ClaudeCode")
+        ? "C:\\Program Files\\ClaudeCode"
+        : "C:\\ProgramData\\ClaudeCode";
+    default:
+      return "/etc/claude-code";
+  }
 }
 function normalizeOverride(value) {
-    const normalized = normalizeString(value);
-    return normalized ? resolve(normalized) : null;
+  const normalized = normalizeString(value);
+  return normalized ? resolve(normalized) : null;
 }
 function getUserConfigRoots() {
-    const claudeOverride = normalizeOverride(process.env.CLAUDE_CONFIG_DIR);
-    const kodeOverride = normalizeOverride(process.env.KODE_CONFIG_DIR);
-    const hasAnyOverride = Boolean(claudeOverride || kodeOverride);
-    if (hasAnyOverride) {
-        return Array.from(new Set([claudeOverride, kodeOverride].filter(Boolean)));
-    }
-    return [join(homedir(), '.claude'), join(homedir(), '.kode')];
+  const claudeOverride = normalizeOverride(process.env.CLAUDE_CONFIG_DIR);
+  const kodeOverride = normalizeOverride(process.env.KODE_CONFIG_DIR);
+  const hasAnyOverride = Boolean(claudeOverride || kodeOverride);
+  if (hasAnyOverride) {
+    return Array.from(new Set([claudeOverride, kodeOverride].filter(Boolean)));
+  }
+  return [join(homedir(), ".claude"), join(homedir(), ".kode")];
 }
 function findProjectAgentDirs(cwd) {
-    const result = [];
-    const home = resolve(homedir());
-    let current = resolve(cwd);
-    while (current !== home) {
-        const claudeDir = join(current, '.claude', 'agents');
-        if (existsSync(claudeDir))
-            result.push(claudeDir);
-        const kodeDir = join(current, '.kode', 'agents');
-        if (existsSync(kodeDir))
-            result.push(kodeDir);
-        const parent = dirname(current);
-        if (parent === current)
-            break;
-        current = parent;
-    }
-    return result;
+  const result = [];
+  const home = resolve(homedir());
+  let current = resolve(cwd);
+  while (current !== home) {
+    const claudeDir = join(current, ".claude", "agents");
+    if (existsSync(claudeDir)) result.push(claudeDir);
+    const kodeDir = join(current, ".kode", "agents");
+    if (existsSync(kodeDir)) result.push(kodeDir);
+    const parent = dirname(current);
+    if (parent === current) break;
+    current = parent;
+  }
+  return result;
 }
 function listMarkdownFilesRecursively(rootDir) {
-    const files = [];
-    const visitedDirs = new Set();
-    const walk = (dirPath) => {
-        let dirStat;
+  const files = [];
+  const visitedDirs = new Set();
+  const walk = (dirPath) => {
+    let dirStat;
+    try {
+      dirStat = statSync(dirPath);
+    } catch {
+      return;
+    }
+    if (!dirStat.isDirectory()) return;
+    const dirKey = `${dirStat.dev}:${dirStat.ino}`;
+    if (visitedDirs.has(dirKey)) return;
+    visitedDirs.add(dirKey);
+    let entries;
+    try {
+      entries = readdirSync(dirPath, { withFileTypes: true });
+    } catch {
+      return;
+    }
+    for (const entry of entries) {
+      const name = String(entry.name ?? "");
+      const fullPath = join(dirPath, name);
+      if (entry.isDirectory()) {
+        walk(fullPath);
+        continue;
+      }
+      if (entry.isFile()) {
+        if (name.toLowerCase().endsWith(".md")) files.push(fullPath);
+        continue;
+      }
+      if (entry.isSymbolicLink()) {
         try {
-            dirStat = statSync(dirPath);
+          const st = statSync(fullPath);
+          if (st.isDirectory()) {
+            walk(fullPath);
+          } else if (st.isFile() && name.toLowerCase().endsWith(".md")) {
+            files.push(fullPath);
+          }
+        } catch {
+          continue;
         }
-        catch {
-            return;
-        }
-        if (!dirStat.isDirectory())
-            return;
-        const dirKey = `${dirStat.dev}:${dirStat.ino}`;
-        if (visitedDirs.has(dirKey))
-            return;
-        visitedDirs.add(dirKey);
-        let entries;
-        try {
-            entries = readdirSync(dirPath, { withFileTypes: true });
-        }
-        catch {
-            return;
-        }
-        for (const entry of entries) {
-            const name = String(entry.name ?? '');
-            const fullPath = join(dirPath, name);
-            if (entry.isDirectory()) {
-                walk(fullPath);
-                continue;
-            }
-            if (entry.isFile()) {
-                if (name.toLowerCase().endsWith('.md'))
-                    files.push(fullPath);
-                continue;
-            }
-            if (entry.isSymbolicLink()) {
-                try {
-                    const st = statSync(fullPath);
-                    if (st.isDirectory()) {
-                        walk(fullPath);
-                    }
-                    else if (st.isFile() && name.toLowerCase().endsWith('.md')) {
-                        files.push(fullPath);
-                    }
-                }
-                catch {
-                    continue;
-                }
-            }
-        }
-    };
-    if (!existsSync(rootDir))
-        return [];
-    walk(rootDir);
-    return files;
+      }
+    }
+  };
+  if (!existsSync(rootDir)) return [];
+  walk(rootDir);
+  return files;
 }
 function readMarkdownFile(filePath) {
-    try {
-        const raw = readFileSync(filePath, 'utf8');
-        const yamlSchema = yaml.JSON_SCHEMA;
-        const parsed = matter(raw, {
-            engines: {
-                yaml: {
-                    parse: (input) => yaml.load(input, yamlSchema ? { schema: yamlSchema } : undefined) ??
-                        {},
-                },
-            },
-        });
-        return {
-            frontmatter: parsed.data ?? {},
-            content: String(parsed.content ?? ''),
-        };
-    }
-    catch (err) {
-        return { error: err instanceof Error ? err.message : String(err) };
-    }
+  try {
+    const raw = readFileSync(filePath, "utf8");
+    const yamlSchema = yaml.JSON_SCHEMA;
+    const parsed = matter(raw, {
+      engines: {
+        yaml: {
+          parse: (input) =>
+            yaml.load(input, yamlSchema ? { schema: yamlSchema } : undefined) ??
+            {},
+        },
+      },
+    });
+    return {
+      frontmatter: parsed.data ?? {},
+      content: String(parsed.content ?? ""),
+    };
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : String(err) };
+  }
 }
 function splitCliList(values) {
-    if (values.length === 0)
-        return [];
-    const out = [];
-    for (const value of values) {
-        if (!value)
-            continue;
-        let current = '';
-        let inParens = false;
-        for (const ch of value) {
-            switch (ch) {
-                case '(':
-                    inParens = true;
-                    current += ch;
-                    break;
-                case ')':
-                    inParens = false;
-                    current += ch;
-                    break;
-                case ',':
-                case ' ': {
-                    if (inParens) {
-                        current += ch;
-                        break;
-                    }
-                    const trimmed = current.trim();
-                    if (trimmed)
-                        out.push(trimmed);
-                    current = '';
-                    break;
-                }
-                default:
-                    current += ch;
-            }
+  if (values.length === 0) return [];
+  const out = [];
+  for (const value of values) {
+    if (!value) continue;
+    let current = "";
+    let inParens = false;
+    for (const ch of value) {
+      switch (ch) {
+        case "(":
+          inParens = true;
+          current += ch;
+          break;
+        case ")":
+          inParens = false;
+          current += ch;
+          break;
+        case ",":
+        case " ": {
+          if (inParens) {
+            current += ch;
+            break;
+          }
+          const trimmed = current.trim();
+          if (trimmed) out.push(trimmed);
+          current = "";
+          break;
         }
-        const trimmed = current.trim();
-        if (trimmed)
-            out.push(trimmed);
+        default:
+          current += ch;
+      }
     }
-    return out;
+    const trimmed = current.trim();
+    if (trimmed) out.push(trimmed);
+  }
+  return out;
 }
 function normalizeToolList(value) {
-    if (value === undefined || value === null)
-        return null;
-    if (!value)
-        return [];
-    let raw = [];
-    if (typeof value === 'string')
-        raw = [value];
-    else if (Array.isArray(value))
-        raw = value.filter((v) => typeof v === 'string');
-    if (raw.length === 0)
-        return [];
-    const parsed = splitCliList(raw);
-    if (parsed.includes('*'))
-        return ['*'];
-    return parsed;
+  if (value === undefined || value === null) return null;
+  if (!value) return [];
+  let raw = [];
+  if (typeof value === "string") raw = [value];
+  else if (Array.isArray(value))
+    raw = value.filter((v) => typeof v === "string");
+  if (raw.length === 0) return [];
+  const parsed = splitCliList(raw);
+  if (parsed.includes("*")) return ["*"];
+  return parsed;
 }
 function z2A(value) {
-    const normalized = normalizeToolList(value);
-    if (normalized === null)
-        return value === undefined ? undefined : [];
-    if (normalized.includes('*'))
-        return undefined;
-    return normalized;
+  const normalized = normalizeToolList(value);
+  if (normalized === null) return value === undefined ? undefined : [];
+  if (normalized.includes("*")) return undefined;
+  return normalized;
 }
 function toolNameFromSpec(spec) {
-    const trimmed = spec.trim();
-    if (!trimmed)
-        return trimmed;
-    const match = trimmed.match(/^([^(]+)\(([^)]+)\)$/);
-    if (!match)
-        return trimmed;
-    const toolName = match[1]?.trim();
-    return toolName || trimmed;
+  const trimmed = spec.trim();
+  if (!trimmed) return trimmed;
+  const match = trimmed.match(/^([^(]+)\(([^)]+)\)$/);
+  if (!match) return trimmed;
+  const toolName = match[1]?.trim();
+  return toolName || trimmed;
 }
 function mapClaudeModelToKode(model) {
-    if (model === 'inherit')
-        return 'inherit';
-    if (model === 'opus')
-        return 'main';
-    if (model === 'sonnet')
-        return 'task';
-    if (model === 'haiku')
-        return 'quick';
-    return model;
+  if (model === "inherit") return "inherit";
+  if (model === "opus") return "main";
+  if (model === "sonnet") return "task";
+  if (model === "haiku") return "quick";
+  return model;
 }
 function validateOneAgentFile(args) {
-    const issues = [];
-    const read = readMarkdownFile(args.filePath);
-    if ('error' in read) {
+  const issues = [];
+  const read = readMarkdownFile(args.filePath);
+  if ("error" in read) {
+    issues.push({
+      level: "error",
+      message: `Failed to parse file: ${read.error}`,
+    });
+    return { filePath: args.filePath, agentType: null, issues };
+  }
+  const fm = read.frontmatter ?? {};
+  const agentType = normalizeString(fm.name);
+  const description = normalizeString(fm.description);
+  if (!agentType) {
+    issues.push({
+      level: "error",
+      message: `Missing required frontmatter field 'name'`,
+    });
+  }
+  if (!description) {
+    issues.push({
+      level: "error",
+      message: `Missing required frontmatter field 'description'`,
+    });
+  }
+  const toolsList = z2A(fm.tools);
+  const tools = toolsList === undefined ? "*" : toolsList;
+  if (Array.isArray(tools) && tools.length === 0) {
+    issues.push({ level: "warning", message: `No tools selected (tools: [])` });
+  }
+  const disallowedRaw =
+    fm.disallowedTools ?? fm["disallowed-tools"] ?? fm["disallowed_tools"];
+  const disallowed =
+    disallowedRaw !== undefined ? z2A(disallowedRaw) : undefined;
+  if (disallowedRaw !== undefined && disallowed === undefined) {
+    issues.push({
+      level: "warning",
+      message: `disallowedTools contains '*' and will be ignored (compatibility behavior)`,
+    });
+  }
+  if (Array.isArray(tools)) {
+    for (const spec of tools) {
+      const toolName = toolNameFromSpec(spec);
+      if (SUBAGENT_HARD_BLOCKED_TOOLS.has(toolName)) {
         issues.push({
-            level: 'error',
-            message: `Failed to parse file: ${read.error}`,
+          level: "warning",
+          message: `Tool '${toolName}' is not available to subagents and will be ignored`,
         });
-        return { filePath: args.filePath, agentType: null, issues };
-    }
-    const fm = read.frontmatter ?? {};
-    const agentType = normalizeString(fm.name);
-    const description = normalizeString(fm.description);
-    if (!agentType) {
+      }
+      if (
+        args.knownToolNames &&
+        toolName &&
+        !args.knownToolNames.has(toolName)
+      ) {
         issues.push({
-            level: 'error',
-            message: `Missing required frontmatter field 'name'`,
+          level: "warning",
+          message: `Unknown tool '${toolName}' (from '${spec}')`,
         });
+      }
     }
-    if (!description) {
-        issues.push({
-            level: 'error',
-            message: `Missing required frontmatter field 'description'`,
-        });
+  }
+  const permissionMode = normalizeString(fm.permissionMode);
+  if (permissionMode && !VALID_PERMISSION_MODES.has(permissionMode)) {
+    issues.push({
+      level: "error",
+      message: `Invalid permissionMode '${permissionMode}' (expected: ${Array.from(VALID_PERMISSION_MODES).join(", ")})`,
+    });
+  }
+  const forkContextValue = fm.forkContext;
+  if (
+    forkContextValue !== undefined &&
+    forkContextValue !== "true" &&
+    forkContextValue !== "false"
+  ) {
+    issues.push({
+      level: "error",
+      message: `Invalid forkContext value '${String(forkContextValue)}' (must be the string 'true' or 'false')`,
+    });
+  }
+  const forkContext = forkContextValue === "true";
+  let modelRaw = fm.model;
+  if (typeof modelRaw !== "string" && typeof fm.model_name === "string") {
+    modelRaw = fm.model_name;
+  }
+  const model = typeof modelRaw === "string" ? modelRaw.trim() : undefined;
+  if (forkContext && model && model !== "inherit") {
+    issues.push({
+      level: "warning",
+      message: `forkContext is true, so model will be forced to 'inherit' (compatibility behavior)`,
+    });
+  }
+  const normalizedModel =
+    model && model.length > 0 ? mapClaudeModelToKode(model) : undefined;
+  if (normalizedModel && normalizedModel !== "inherit") {
+    const manager = getModelManager();
+    const resolved = manager.resolveModelWithInfo(normalizedModel);
+    if (!resolved.success || !resolved.profile) {
+      issues.push({
+        level: "error",
+        message:
+          resolved.error ??
+          `Model '${String(normalizedModel)}' could not be resolved`,
+      });
     }
-    const toolsList = z2A(fm.tools);
-    const tools = toolsList === undefined ? '*' : toolsList;
-    if (Array.isArray(tools) && tools.length === 0) {
-        issues.push({ level: 'warning', message: `No tools selected (tools: [])` });
-    }
-    const disallowedRaw = fm.disallowedTools ?? fm['disallowed-tools'] ?? fm['disallowed_tools'];
-    const disallowed = disallowedRaw !== undefined ? z2A(disallowedRaw) : undefined;
-    if (disallowedRaw !== undefined && disallowed === undefined) {
-        issues.push({
-            level: 'warning',
-            message: `disallowedTools contains '*' and will be ignored (compatibility behavior)`,
-        });
-    }
-    if (Array.isArray(tools)) {
-        for (const spec of tools) {
-            const toolName = toolNameFromSpec(spec);
-            if (SUBAGENT_HARD_BLOCKED_TOOLS.has(toolName)) {
-                issues.push({
-                    level: 'warning',
-                    message: `Tool '${toolName}' is not available to subagents and will be ignored`,
-                });
-            }
-            if (args.knownToolNames &&
-                toolName &&
-                !args.knownToolNames.has(toolName)) {
-                issues.push({
-                    level: 'warning',
-                    message: `Unknown tool '${toolName}' (from '${spec}')`,
-                });
-            }
-        }
-    }
-    const permissionMode = normalizeString(fm.permissionMode);
-    if (permissionMode && !VALID_PERMISSION_MODES.has(permissionMode)) {
-        issues.push({
-            level: 'error',
-            message: `Invalid permissionMode '${permissionMode}' (expected: ${Array.from(VALID_PERMISSION_MODES).join(', ')})`,
-        });
-    }
-    const forkContextValue = fm.forkContext;
-    if (forkContextValue !== undefined &&
-        forkContextValue !== 'true' &&
-        forkContextValue !== 'false') {
-        issues.push({
-            level: 'error',
-            message: `Invalid forkContext value '${String(forkContextValue)}' (must be the string 'true' or 'false')`,
-        });
-    }
-    const forkContext = forkContextValue === 'true';
-    let modelRaw = fm.model;
-    if (typeof modelRaw !== 'string' && typeof fm.model_name === 'string') {
-        modelRaw = fm.model_name;
-    }
-    const model = typeof modelRaw === 'string' ? modelRaw.trim() : undefined;
-    if (forkContext && model && model !== 'inherit') {
-        issues.push({
-            level: 'warning',
-            message: `forkContext is true, so model will be forced to 'inherit' (compatibility behavior)`,
-        });
-    }
-    const normalizedModel = model && model.length > 0 ? mapClaudeModelToKode(model) : undefined;
-    if (normalizedModel && normalizedModel !== 'inherit') {
-        const manager = getModelManager();
-        const resolved = manager.resolveModelWithInfo(normalizedModel);
-        if (!resolved.success || !resolved.profile) {
-            issues.push({
-                level: 'error',
-                message: resolved.error ??
-                    `Model '${String(normalizedModel)}' could not be resolved`,
-            });
-        }
-    }
-    const filename = basename(args.filePath, '.md');
-    if (agentType && filename !== agentType) {
-        issues.push({
-            level: 'warning',
-            message: `Filename '${filename}.md' does not match agent name '${agentType}'`,
-        });
-    }
-    return {
-        filePath: args.filePath,
-        agentType: agentType ?? null,
-        issues,
-        ...(model ? { model } : {}),
-        ...(normalizedModel ? { normalizedModel } : {}),
-    };
+  }
+  const filename = basename(args.filePath, ".md");
+  if (agentType && filename !== agentType) {
+    issues.push({
+      level: "warning",
+      message: `Filename '${filename}.md' does not match agent name '${agentType}'`,
+    });
+  }
+  return {
+    filePath: args.filePath,
+    agentType: agentType ?? null,
+    issues,
+    ...(model ? { model } : {}),
+    ...(normalizedModel ? { normalizedModel } : {}),
+  };
 }
 function defaultValidationPaths(cwd) {
-    const out = [];
-    const policyDir = join(getClaudePolicyBaseDir(), '.claude', 'agents');
-    if (existsSync(policyDir))
-        out.push(policyDir);
-    for (const root of getUserConfigRoots()) {
-        const dirPath = join(root, 'agents');
-        if (existsSync(dirPath))
-            out.push(dirPath);
-    }
-    for (const dirPath of findProjectAgentDirs(cwd)) {
-        if (existsSync(dirPath))
-            out.push(dirPath);
-    }
-    return out;
+  const out = [];
+  const policyDir = join(getClaudePolicyBaseDir(), ".claude", "agents");
+  if (existsSync(policyDir)) out.push(policyDir);
+  for (const root of getUserConfigRoots()) {
+    const dirPath = join(root, "agents");
+    if (existsSync(dirPath)) out.push(dirPath);
+  }
+  for (const dirPath of findProjectAgentDirs(cwd)) {
+    if (existsSync(dirPath)) out.push(dirPath);
+  }
+  return out;
 }
 export async function validateAgentTemplates(args) {
-    const inputPaths = args.paths.length > 0 ? args.paths : defaultValidationPaths(args.cwd);
-    const markdownFiles = new Set();
-    for (const inputPath of inputPaths) {
-        const resolved = resolve(args.cwd, inputPath);
-        if (!existsSync(resolved))
-            continue;
-        let st;
-        try {
-            st = statSync(resolved);
-        }
-        catch {
-            continue;
-        }
-        if (st.isFile()) {
-            if (resolved.toLowerCase().endsWith('.md'))
-                markdownFiles.add(resolved);
-            continue;
-        }
-        if (st.isDirectory()) {
-            for (const f of listMarkdownFilesRecursively(resolved))
-                markdownFiles.add(f);
-        }
+  const inputPaths =
+    args.paths.length > 0 ? args.paths : defaultValidationPaths(args.cwd);
+  const markdownFiles = new Set();
+  for (const inputPath of inputPaths) {
+    const resolved = resolve(args.cwd, inputPath);
+    if (!existsSync(resolved)) continue;
+    let st;
+    try {
+      st = statSync(resolved);
+    } catch {
+      continue;
     }
-    let knownToolNames;
-    if (args.checkTools) {
-        try {
-            const { getTools } = await import('@tools');
-            const { getCurrentProjectConfig } = await import('@utils/config');
-            const allTools = await getTools(getCurrentProjectConfig().enableArchitectTool);
-            knownToolNames = new Set(allTools.map(t => t.name));
-        }
-        catch {
-            knownToolNames = undefined;
-        }
+    if (st.isFile()) {
+      if (resolved.toLowerCase().endsWith(".md")) markdownFiles.add(resolved);
+      continue;
     }
-    const results = Array.from(markdownFiles)
-        .sort((a, b) => a.localeCompare(b))
-        .map(filePath => validateOneAgentFile({
+    if (st.isDirectory()) {
+      for (const f of listMarkdownFilesRecursively(resolved))
+        markdownFiles.add(f);
+    }
+  }
+  let knownToolNames;
+  if (args.checkTools) {
+    try {
+      const { getTools } = await import("@tools");
+      const { getCurrentProjectConfig } = await import("@utils/config");
+      const allTools = await getTools(
+        getCurrentProjectConfig().enableArchitectTool,
+      );
+      knownToolNames = new Set(allTools.map((t) => t.name));
+    } catch {
+      knownToolNames = undefined;
+    }
+  }
+  const results = Array.from(markdownFiles)
+    .sort((a, b) => a.localeCompare(b))
+    .map((filePath) =>
+      validateOneAgentFile({
         filePath,
         knownToolNames,
-    }));
-    const errorCount = results.reduce((sum, r) => sum + r.issues.filter(i => i.level === 'error').length, 0);
-    const warningCount = results.reduce((sum, r) => sum + r.issues.filter(i => i.level === 'warning').length, 0);
-    return { ok: errorCount === 0, errorCount, warningCount, results };
+      }),
+    );
+  const errorCount = results.reduce(
+    (sum, r) => sum + r.issues.filter((i) => i.level === "error").length,
+    0,
+  );
+  const warningCount = results.reduce(
+    (sum, r) => sum + r.issues.filter((i) => i.level === "warning").length,
+    0,
+  );
+  return { ok: errorCount === 0, errorCount, warningCount, results };
 }
 //# sourceMappingURL=agentsValidate.js.map

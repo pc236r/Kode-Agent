@@ -1,23 +1,23 @@
-import React from 'react'
-import { Box, Text } from 'ink'
-import { Select } from '../custom-select/select'
-import TextInput from '../TextInput'
-import type { ModelInfo } from './types'
-import { buildModelOptions } from './filterModels'
+import React from "react";
+import { Box, Text } from "ink";
+import { Select } from "../custom-select/select";
+import TextInput from "../TextInput";
+import type { ModelInfo } from "./types";
+import { buildModelOptions } from "./filterModels";
 
 type Props = {
-  theme: any
-  exitState: { pending: boolean; keyName?: string }
-  providerLabel: string
-  modelTypeText: string
+  theme: any;
+  exitState: { pending: boolean; keyName?: string };
+  providerLabel: string;
+  modelTypeText: string;
 
-  availableModels: ModelInfo[]
-  modelSearchQuery: string
-  onModelSearchChange: (value: string) => void
-  modelSearchCursorOffset: number
-  onModelSearchCursorOffsetChange: (offset: number) => void
-  onModelSelect: (model: string) => void
-}
+  availableModels: ModelInfo[];
+  modelSearchQuery: string;
+  onModelSearchChange: (value: string) => void;
+  modelSearchCursorOffset: number;
+  onModelSearchCursorOffsetChange: (offset: number) => void;
+  onModelSelect: (model: string) => void;
+};
 
 export function ModelSelectionScreen({
   theme,
@@ -31,7 +31,7 @@ export function ModelSelectionScreen({
   onModelSearchCursorOffsetChange,
   onModelSelect,
 }: Props): React.ReactNode {
-  const modelOptions = buildModelOptions(availableModels, modelSearchQuery)
+  const modelOptions = buildModelOptions(availableModels, modelSearchQuery);
 
   return (
     <Box flexDirection="column" gap={1}>
@@ -44,10 +44,10 @@ export function ModelSelectionScreen({
         paddingY={1}
       >
         <Text bold>
-          Model Selection{' '}
+          Model Selection{" "}
           {exitState.pending
             ? `(press ${exitState.keyName} again to exit)`
-            : ''}
+            : ""}
         </Text>
         <Box flexDirection="column" gap={1}>
           <Text bold>
@@ -108,5 +108,5 @@ export function ModelSelectionScreen({
         </Box>
       </Box>
     </Box>
-  )
+  );
 }

@@ -1,20 +1,20 @@
-import { Box, Text, Newline } from 'ink'
-import * as React from 'react'
-import { getTheme } from '@utils/theme'
-import { PRODUCT_NAME } from '@constants/product'
-import { getGlobalConfig } from '@utils/config'
-import { getCwd } from '@utils/state'
-import { AsciiLogo } from './AsciiLogo'
-import type { WrappedClient } from '@services/mcpClient'
-import { getModelManager } from '@utils/model'
-import { MACRO } from '@constants/macros'
+import { Box, Text, Newline } from "ink";
+import * as React from "react";
+import { getTheme } from "@utils/theme";
+import { PRODUCT_NAME } from "@constants/product";
+import { getGlobalConfig } from "@utils/config";
+import { getCwd } from "@utils/state";
+import { AsciiLogo } from "./AsciiLogo";
+import type { WrappedClient } from "@services/mcpClient";
+import { getModelManager } from "@utils/model";
+import { MACRO } from "@constants/macros";
 
-export const MIN_LOGO_WIDTH = 50
+export const MIN_LOGO_WIDTH = 50;
 
 const DEFAULT_UPDATE_COMMANDS = [
-  'bun add -g @shareai-lab/kode@latest',
-  'npm install -g @shareai-lab/kode@latest',
-] as const
+  "bun add -g @shareai-lab/kode@latest",
+  "npm install -g @shareai-lab/kode@latest",
+] as const;
 
 export function Logo({
   mcpClients,
@@ -22,23 +22,23 @@ export function Logo({
   updateBannerVersion,
   updateBannerCommands,
 }: {
-  mcpClients: WrappedClient[]
-  isDefaultModel?: boolean
-  updateBannerVersion?: string | null
-  updateBannerCommands?: string[] | null
+  mcpClients: WrappedClient[];
+  isDefaultModel?: boolean;
+  updateBannerVersion?: string | null;
+  updateBannerCommands?: string[] | null;
 }): React.ReactNode {
-  const width = Math.max(MIN_LOGO_WIDTH, getCwd().length + 12)
-  const theme = getTheme()
-  const config = getGlobalConfig()
+  const width = Math.max(MIN_LOGO_WIDTH, getCwd().length + 12);
+  const theme = getTheme();
+  const config = getGlobalConfig();
 
-  const modelManager = getModelManager()
-  const mainModelName = modelManager.getModelName('main')
-  const currentModel = mainModelName || 'No model configured'
+  const modelManager = getModelManager();
+  const mainModelName = modelManager.getModelName("main");
+  const currentModel = mainModelName || "No model configured";
   const hasOverrides = Boolean(
     process.env.DISABLE_PROMPT_CACHING ||
     process.env.API_TIMEOUT_MS ||
     process.env.MAX_THINKING_TOKENS,
-  )
+  );
 
   return (
     <Box flexDirection="column">
@@ -54,15 +54,15 @@ export function Logo({
         {updateBannerVersion ? (
           <Box flexDirection="column">
             <Text color="yellow">
-              New version available: {updateBannerVersion} (current:{' '}
+              New version available: {updateBannerVersion} (current:{" "}
               {MACRO.VERSION})
             </Text>
             <Text>Run the following command to update:</Text>
             <Text>
-              {'  '}
+              {"  "}
               {updateBannerCommands?.[1] ?? DEFAULT_UPDATE_COMMANDS[1]}
             </Text>
-            {process.platform !== 'win32' && (
+            {process.platform !== "win32" && (
               <Text dimColor>
                 Note: you may need to prefix with "sudo" on macOS/Linux.
               </Text>
@@ -70,7 +70,7 @@ export function Logo({
           </Box>
         ) : null}
         <Text>
-          <Text color={theme.kode}>✻</Text> Welcome to{' '}
+          <Text color={theme.kode}>✻</Text> Welcome to{" "}
           <Text bold>{PRODUCT_NAME}</Text> <Text>research preview!</Text>
         </Text>
         {}
@@ -101,7 +101,7 @@ export function Logo({
               </Box>
               {process.env.DISABLE_PROMPT_CACHING ? (
                 <Text color={theme.secondaryText}>
-                  • Prompt caching:{' '}
+                  • Prompt caching:{" "}
                   <Text color={theme.error} bold>
                     off
                   </Text>
@@ -109,13 +109,13 @@ export function Logo({
               ) : null}
               {process.env.API_TIMEOUT_MS ? (
                 <Text color={theme.secondaryText}>
-                  • API timeout:{' '}
+                  • API timeout:{" "}
                   <Text bold>{process.env.API_TIMEOUT_MS}ms</Text>
                 </Text>
               ) : null}
               {process.env.MAX_THINKING_TOKENS ? (
                 <Text color={theme.secondaryText}>
-                  • Max thinking tokens:{' '}
+                  • Max thinking tokens:{" "}
                   <Text bold>{process.env.MAX_THINKING_TOKENS}</Text>
                 </Text>
               ) : null}
@@ -145,10 +145,10 @@ export function Logo({
                 <Text
                   bold
                   color={
-                    client.type === 'connected' ? theme.success : theme.error
+                    client.type === "connected" ? theme.success : theme.error
                   }
                 >
-                  {client.type === 'connected' ? 'connected' : 'failed'}
+                  {client.type === "connected" ? "connected" : "failed"}
                 </Text>
               </Box>
             ))}
@@ -156,5 +156,5 @@ export function Logo({
         ) : null}
       </Box>
     </Box>
-  )
+  );
 }

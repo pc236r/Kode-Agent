@@ -1,1 +1,1 @@
-export { savePermission } from './savePermission'
+export { savePermission } from "./savePermission";

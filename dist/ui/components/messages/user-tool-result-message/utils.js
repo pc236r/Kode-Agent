@@ -1,37 +1,45 @@
-import { useMemo } from 'react';
-import { GlobTool } from '@tools/GlobTool/GlobTool';
-import { GrepTool } from '@tools/search/GrepTool/GrepTool';
+import { useMemo } from "react";
+import { GlobTool } from "@tools/GlobTool/GlobTool";
+import { GrepTool } from "@tools/search/GrepTool/GrepTool";
 function getToolUseFromMessages(toolUseID, messages) {
-    let toolUse = null;
-    for (const message of messages) {
-        if (message.type !== 'assistant' ||
-            !Array.isArray(message.message.content)) {
-            continue;
-        }
-        for (const content of message.message.content) {
-            if ((content.type === 'tool_use' ||
-                content.type === 'server_tool_use' ||
-                content.type === 'mcp_tool_use') &&
-                content.id === toolUseID) {
-                toolUse = content;
-            }
-        }
+  let toolUse = null;
+  for (const message of messages) {
+    if (
+      message.type !== "assistant" ||
+      !Array.isArray(message.message.content)
+    ) {
+      continue;
     }
-    return toolUse;
+    for (const content of message.message.content) {
+      if (
+        (content.type === "tool_use" ||
+          content.type === "server_tool_use" ||
+          content.type === "mcp_tool_use") &&
+        content.id === toolUseID
+      ) {
+        toolUse = content;
+      }
+    }
+  }
+  return toolUse;
 }
 export function useGetToolFromMessages(toolUseID, tools, messages) {
-    return useMemo(() => {
-        const toolUse = getToolUseFromMessages(toolUseID, messages);
-        if (!toolUse) {
-            throw new ReferenceError(`Tool use not found for tool_use_id ${toolUseID}`);
-        }
-        const tool = [...tools, GlobTool, GrepTool].find(_ => _.name === toolUse.name);
-        if (tool === GlobTool || tool === GrepTool) {
-        }
-        if (!tool) {
-            throw new ReferenceError(`Tool not found for ${toolUse.name}`);
-        }
-        return { tool, toolUse };
-    }, [toolUseID, messages, tools]);
+  return useMemo(() => {
+    const toolUse = getToolUseFromMessages(toolUseID, messages);
+    if (!toolUse) {
+      throw new ReferenceError(
+        `Tool use not found for tool_use_id ${toolUseID}`,
+      );
+    }
+    const tool = [...tools, GlobTool, GrepTool].find(
+      (_) => _.name === toolUse.name,
+    );
+    if (tool === GlobTool || tool === GrepTool) {
+    }
+    if (!tool) {
+      throw new ReferenceError(`Tool not found for ${toolUse.name}`);
+    }
+    return { tool, toolUse };
+  }, [toolUseID, messages, tools]);
 }
 //# sourceMappingURL=utils.js.map

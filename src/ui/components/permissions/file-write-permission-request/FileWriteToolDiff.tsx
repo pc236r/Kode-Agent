@@ -1,22 +1,22 @@
-import * as React from 'react'
-import { existsSync, readFileSync } from 'fs'
-import { useMemo } from 'react'
-import { StructuredDiff } from '@components/StructuredDiff'
-import { Box, Text } from 'ink'
-import { getTheme } from '@utils/theme'
-import { intersperse } from '@utils/text/array'
-import { getCwd } from '@utils/state'
-import { extname, relative } from 'path'
-import { detectFileEncoding } from '@utils/fs/file'
-import { HighlightedCode } from '@components/HighlightedCode'
-import { getPatch } from '@utils/text/diff'
+import * as React from "react";
+import { existsSync, readFileSync } from "fs";
+import { useMemo } from "react";
+import { StructuredDiff } from "@components/StructuredDiff";
+import { Box, Text } from "ink";
+import { getTheme } from "@utils/theme";
+import { intersperse } from "@utils/text/array";
+import { getCwd } from "@utils/state";
+import { extname, relative } from "path";
+import { detectFileEncoding } from "@utils/fs/file";
+import { HighlightedCode } from "@components/HighlightedCode";
+import { getPatch } from "@utils/text/diff";
 
 type Props = {
-  file_path: string
-  content: string
-  verbose: boolean
-  width: number
-}
+  file_path: string;
+  content: string;
+  verbose: boolean;
+  width: number;
+};
 
 export function FileWriteToolDiff({
   file_path,
@@ -24,25 +24,25 @@ export function FileWriteToolDiff({
   verbose,
   width,
 }: Props): React.ReactNode {
-  const fileExists = useMemo(() => existsSync(file_path), [file_path])
+  const fileExists = useMemo(() => existsSync(file_path), [file_path]);
   const oldContent = useMemo(() => {
     if (!fileExists) {
-      return ''
+      return "";
     }
-    const enc = detectFileEncoding(file_path)
-    return readFileSync(file_path, enc)
-  }, [file_path, fileExists])
+    const enc = detectFileEncoding(file_path);
+    return readFileSync(file_path, enc);
+  }, [file_path, fileExists]);
   const hunks = useMemo(() => {
     if (!fileExists) {
-      return null
+      return null;
     }
     return getPatch({
       filePath: file_path,
       fileContents: oldContent,
       oldStr: oldContent,
       newStr: content,
-    })
-  }, [fileExists, file_path, oldContent, content])
+    });
+  }, [fileExists, file_path, oldContent, content]);
 
   return (
     <Box
@@ -56,7 +56,7 @@ export function FileWriteToolDiff({
       </Box>
       {hunks ? (
         intersperse(
-          hunks.map(_ => (
+          hunks.map((_) => (
             <StructuredDiff
               key={_.newStart}
               patch={_}
@@ -64,7 +64,7 @@ export function FileWriteToolDiff({
               width={width}
             />
           )),
-          i => (
+          (i) => (
             <React.Fragment key={`ellipsis-${i}`}>
               <Text color={getTheme().secondaryText}>...</Text>
             </React.Fragment>
@@ -72,10 +72,10 @@ export function FileWriteToolDiff({
         )
       ) : (
         <HighlightedCode
-          code={content || '(No content)'}
+          code={content || "(No content)"}
           language={extname(file_path).slice(1)}
         />
       )}
     </Box>
-  )
+  );
 }

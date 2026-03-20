@@ -1,13 +1,13 @@
-import { logError } from '@utils/log'
+import { logError } from "@utils/log";
 
 export function safeParseJSON(json: string | null | undefined): unknown {
   if (!json) {
-    return null
+    return null;
   }
   try {
-    return JSON.parse(json)
+    return JSON.parse(json);
   } catch (e) {
-    logError(e)
-    return null
+    logError(e);
+    return null;
   }
 }

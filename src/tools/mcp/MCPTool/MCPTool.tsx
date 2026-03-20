@@ -1,58 +1,58 @@
-import { Box, Text } from 'ink'
-import * as React from 'react'
-import { z } from 'zod'
-import { FallbackToolUseRejectedMessage } from '@components/FallbackToolUseRejectedMessage'
-import { type Tool } from '@tool'
-import { getTheme } from '@utils/theme'
-import { DESCRIPTION, PROMPT } from './prompt'
-import { OutputLine } from '@tools/BashTool/OutputLine'
+import { Box, Text } from "ink";
+import * as React from "react";
+import { z } from "zod";
+import { FallbackToolUseRejectedMessage } from "@components/FallbackToolUseRejectedMessage";
+import { type Tool } from "@tool";
+import { getTheme } from "@utils/theme";
+import { DESCRIPTION, PROMPT } from "./prompt";
+import { OutputLine } from "@tools/BashTool/OutputLine";
 
-const inputSchema = z.object({}).passthrough()
+const inputSchema = z.object({}).passthrough();
 
 export const MCPTool = {
   async isEnabled() {
-    return true
+    return true;
   },
   isReadOnly() {
-    return false
+    return false;
   },
   isConcurrencySafe() {
-    return false
+    return false;
   },
-  name: 'mcp',
+  name: "mcp",
   async description() {
-    return DESCRIPTION
+    return DESCRIPTION;
   },
   async prompt() {
-    return PROMPT
+    return PROMPT;
   },
   inputSchema,
   async *call() {
     yield {
-      type: 'result',
-      data: '',
-      resultForAssistant: '',
-    }
+      type: "result",
+      data: "",
+      resultForAssistant: "",
+    };
   },
   needsPermissions() {
-    return true
+    return true;
   },
   renderToolUseMessage(input) {
     return Object.entries(input)
       .map(([key, value]) => `${key}: ${JSON.stringify(value)}`)
-      .join(', ')
+      .join(", ");
   },
-  userFacingName: () => 'mcp',
+  userFacingName: () => "mcp",
   renderToolUseRejectedMessage() {
-    return <FallbackToolUseRejectedMessage />
+    return <FallbackToolUseRejectedMessage />;
   },
   renderToolResultMessage(output) {
-    const verbose = false
+    const verbose = false;
     if (Array.isArray(output)) {
       return (
         <Box flexDirection="column">
           {output.map((item, i) => {
-            if (item.type === 'image') {
+            if (item.type === "image") {
               return (
                 <Box
                   key={i}
@@ -65,9 +65,9 @@ export const MCPTool = {
                     <Text>[Image]</Text>
                   </Box>
                 </Box>
-              )
+              );
             }
-            const lines = item.text.split('\n').length
+            const lines = item.text.split("\n").length;
             return (
               <OutputLine
                 key={i}
@@ -75,10 +75,10 @@ export const MCPTool = {
                 lines={lines}
                 verbose={verbose}
               />
-            )
+            );
           })}
         </Box>
-      )
+      );
     }
 
     if (!output) {
@@ -89,13 +89,13 @@ export const MCPTool = {
             <Text color={getTheme().secondaryText}>(No content)</Text>
           </Box>
         </Box>
-      )
+      );
     }
 
-    const lines = output.split('\n').length
-    return <OutputLine content={output} lines={lines} verbose={verbose} />
+    const lines = output.split("\n").length;
+    return <OutputLine content={output} lines={lines} verbose={verbose} />;
   },
   renderResultForAssistant(content) {
-    return content
+    return content;
   },
-} satisfies Tool<typeof inputSchema, string>
+} satisfies Tool<typeof inputSchema, string>;

@@ -1,23 +1,23 @@
-import { Command } from '@commands'
-import { BashTool } from '@tools/BashTool/BashTool'
+import { Command } from "@commands";
+import { BashTool } from "@tools/BashTool/BashTool";
 
 export default {
-  type: 'prompt',
-  name: 'review',
-  description: 'Review a pull request',
+  type: "prompt",
+  name: "review",
+  description: "Review a pull request",
   isEnabled: true,
   isHidden: false,
-  progressMessage: 'reviewing pull request',
+  progressMessage: "reviewing pull request",
   userFacingName() {
-    return 'review'
+    return "review";
   },
   async getPromptForCommand(args) {
     return [
       {
-        role: 'user',
+        role: "user",
         content: [
           {
-            type: 'text',
+            type: "text",
             text: `
       You are an expert code reviewer. Follow these steps:
 
@@ -44,6 +44,6 @@ export default {
           },
         ],
       },
-    ]
+    ];
   },
-} satisfies Command
+} satisfies Command;

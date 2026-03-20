@@ -1,16 +1,16 @@
-import { memoize } from 'lodash-es';
-import { parse } from 'shell-quote';
-const SINGLE_QUOTE = '__SINGLE_QUOTE__';
-const DOUBLE_QUOTE = '__DOUBLE_QUOTE__';
-const NEW_LINE = '__NEW_LINE__';
+import { memoize } from "lodash-es";
+import { parse } from "shell-quote";
+const SINGLE_QUOTE = "__SINGLE_QUOTE__";
+const DOUBLE_QUOTE = "__DOUBLE_QUOTE__";
+const NEW_LINE = "__NEW_LINE__";
 export function buildBashCommandPrefixDetectionPrompt(command) {
-    return {
-        systemPrompt: [
-            `Your task is to process Bash commands that an AI coding agent wants to run.
+  return {
+    systemPrompt: [
+      `Your task is to process Bash commands that an AI coding agent wants to run.
 
 This policy spec defines how to determine the prefix of a Bash command:`,
-        ],
-        userPrompt: `<policy_spec>
+    ],
+    userPrompt: `<policy_spec>
 # Kode Agent Bash command prefix detection
 
 This document defines risk levels for actions that the Kode Agent may take. This classification system is part of a broader safety framework and is used to determine when additional user confirmation or oversight may be needed.
@@ -76,178 +76,182 @@ ONLY return the prefix. Do not return any other text, markdown markers, or other
 
 Command: ${command}
 `,
-    };
+  };
 }
 export function splitCommand(command) {
-    const tokens = [];
-    const parsed = parse(command
-        .replaceAll('"', `"${DOUBLE_QUOTE}`)
-        .replaceAll("'", `'${SINGLE_QUOTE}`)
-        .replaceAll('\n', `\n${NEW_LINE}\n`), varName => `$${varName}`);
-    for (const part of parsed) {
-        if (typeof part === 'string') {
-            if (tokens.length > 0 && typeof tokens[tokens.length - 1] === 'string') {
-                tokens[tokens.length - 1] += ' ' + part;
-                continue;
-            }
-            tokens.push(part);
-            continue;
-        }
-        if (part &&
-            typeof part === 'object' &&
-            'op' in part &&
-            part.op === 'glob') {
-            const pattern = String(part.pattern);
-            if (tokens.length > 0 && typeof tokens[tokens.length - 1] === 'string') {
-                tokens[tokens.length - 1] += ' ' + pattern;
-                continue;
-            }
-            tokens.push(pattern);
-            continue;
-        }
-        tokens.push(part);
+  const tokens = [];
+  const parsed = parse(
+    command
+      .replaceAll('"', `"${DOUBLE_QUOTE}`)
+      .replaceAll("'", `'${SINGLE_QUOTE}`)
+      .replaceAll("\n", `\n${NEW_LINE}\n`),
+    (varName) => `$${varName}`,
+  );
+  for (const part of parsed) {
+    if (typeof part === "string") {
+      if (tokens.length > 0 && typeof tokens[tokens.length - 1] === "string") {
+        tokens[tokens.length - 1] += " " + part;
+        continue;
+      }
+      tokens.push(part);
+      continue;
     }
-    const parts = tokens.map(part => {
-        if (typeof part === 'string') {
-            const restored = part
-                .replaceAll(`${SINGLE_QUOTE}`, "'")
-                .replaceAll(`${DOUBLE_QUOTE}`, '"');
-            if (restored === NEW_LINE)
-                return null;
-            return restored;
-        }
-        if (!part || typeof part !== 'object')
-            return null;
-        if ('comment' in part)
-            return null;
-        if ('op' in part)
-            return String(part.op);
-        return null;
-    });
-    const out = [];
-    let current = '';
-    for (const part of parts) {
-        if (part === null || COMMAND_LIST_SEPARATORS.has(part)) {
-            const trimmed = current.trim();
-            if (trimmed)
-                out.push(trimmed);
-            current = '';
-            continue;
-        }
-        current = current ? `${current} ${part}` : part;
+    if (
+      part &&
+      typeof part === "object" &&
+      "op" in part &&
+      part.op === "glob"
+    ) {
+      const pattern = String(part.pattern);
+      if (tokens.length > 0 && typeof tokens[tokens.length - 1] === "string") {
+        tokens[tokens.length - 1] += " " + pattern;
+        continue;
+      }
+      tokens.push(pattern);
+      continue;
     }
-    const trimmed = current.trim();
-    if (trimmed)
-        out.push(trimmed);
-    return out;
+    tokens.push(part);
+  }
+  const parts = tokens.map((part) => {
+    if (typeof part === "string") {
+      const restored = part
+        .replaceAll(`${SINGLE_QUOTE}`, "'")
+        .replaceAll(`${DOUBLE_QUOTE}`, '"');
+      if (restored === NEW_LINE) return null;
+      return restored;
+    }
+    if (!part || typeof part !== "object") return null;
+    if ("comment" in part) return null;
+    if ("op" in part) return String(part.op);
+    return null;
+  });
+  const out = [];
+  let current = "";
+  for (const part of parts) {
+    if (part === null || COMMAND_LIST_SEPARATORS.has(part)) {
+      const trimmed = current.trim();
+      if (trimmed) out.push(trimmed);
+      current = "";
+      continue;
+    }
+    current = current ? `${current} ${part}` : part;
+  }
+  const trimmed = current.trim();
+  if (trimmed) out.push(trimmed);
+  return out;
 }
-export const getCommandSubcommandPrefix = memoize(async (command, abortSignal) => {
+export const getCommandSubcommandPrefix = memoize(
+  async (command, abortSignal) => {
     const subcommands = splitCommand(command);
-    const [fullCommandPrefix, ...subcommandPrefixesResults] = await Promise.all([
+    const [fullCommandPrefix, ...subcommandPrefixesResults] = await Promise.all(
+      [
         getCommandPrefix(command, abortSignal),
         ...subcommands.map(async (subcommand) => ({
-            subcommand,
-            prefix: await getCommandPrefix(subcommand, abortSignal),
+          subcommand,
+          prefix: await getCommandPrefix(subcommand, abortSignal),
         })),
-    ]);
+      ],
+    );
     if (!fullCommandPrefix) {
-        return null;
+      return null;
     }
-    const subcommandPrefixes = subcommandPrefixesResults.reduce((acc, { subcommand, prefix }) => {
+    const subcommandPrefixes = subcommandPrefixesResults.reduce(
+      (acc, { subcommand, prefix }) => {
         if (prefix) {
-            acc.set(subcommand, prefix);
+          acc.set(subcommand, prefix);
         }
         return acc;
-    }, new Map());
+      },
+      new Map(),
+    );
     return {
-        ...fullCommandPrefix,
-        subcommandPrefixes,
+      ...fullCommandPrefix,
+      subcommandPrefixes,
     };
-}, command => command);
-const getCommandPrefix = memoize(async (command, abortSignal) => {
-    const { systemPrompt, userPrompt } = buildBashCommandPrefixDetectionPrompt(command);
-    const { API_ERROR_MESSAGE_PREFIX, queryQuick } = await import('@services/llm');
+  },
+  (command) => command,
+);
+const getCommandPrefix = memoize(
+  async (command, abortSignal) => {
+    const { systemPrompt, userPrompt } =
+      buildBashCommandPrefixDetectionPrompt(command);
+    const { API_ERROR_MESSAGE_PREFIX, queryQuick } =
+      await import("@services/llm");
     const response = await queryQuick({
-        systemPrompt,
-        userPrompt,
-        signal: abortSignal,
-        enablePromptCaching: false,
+      systemPrompt,
+      userPrompt,
+      signal: abortSignal,
+      enablePromptCaching: false,
     });
-    const rawPrefix = typeof response.message.content === 'string'
+    const rawPrefix =
+      typeof response.message.content === "string"
         ? response.message.content
         : Array.isArray(response.message.content)
-            ? (response.message.content.find(_ => _.type === 'text')?.text ??
-                'none')
-            : 'none';
-    const firstNonEmptyLine = rawPrefix
+          ? (response.message.content.find((_) => _.type === "text")?.text ??
+            "none")
+          : "none";
+    const firstNonEmptyLine =
+      rawPrefix
         .split(/\r?\n/)
-        .map(l => l.trim())
-        .find(Boolean) ?? '';
-    const prefix = firstNonEmptyLine.replace(/<[^>]+>/g, '').trim();
+        .map((l) => l.trim())
+        .find(Boolean) ?? "";
+    const prefix = firstNonEmptyLine.replace(/<[^>]+>/g, "").trim();
     if (prefix.startsWith(API_ERROR_MESSAGE_PREFIX)) {
-        return null;
+      return null;
     }
-    if (prefix === 'command_injection_detected') {
-        return { commandInjectionDetected: true };
+    if (prefix === "command_injection_detected") {
+      return { commandInjectionDetected: true };
     }
-    if (prefix !== 'none' && prefix !== 'git' && !command.startsWith(prefix)) {
-        return { commandInjectionDetected: true };
+    if (prefix !== "none" && prefix !== "git" && !command.startsWith(prefix)) {
+      return { commandInjectionDetected: true };
     }
-    if (prefix === 'git') {
-        return {
-            commandPrefix: null,
-            commandInjectionDetected: false,
-        };
+    if (prefix === "git") {
+      return {
+        commandPrefix: null,
+        commandInjectionDetected: false,
+      };
     }
-    if (prefix === 'none') {
-        return {
-            commandPrefix: null,
-            commandInjectionDetected: false,
-        };
+    if (prefix === "none") {
+      return {
+        commandPrefix: null,
+        commandInjectionDetected: false,
+      };
     }
     return {
-        commandPrefix: prefix,
-        commandInjectionDetected: false,
+      commandPrefix: prefix,
+      commandInjectionDetected: false,
     };
-}, command => command);
-const COMMAND_LIST_SEPARATORS = new Set([
-    '&&',
-    '||',
-    ';',
-    ';;',
-    '|',
-]);
+  },
+  (command) => command,
+);
+const COMMAND_LIST_SEPARATORS = new Set(["&&", "||", ";", ";;", "|"]);
 function isCommandList(command) {
-    const tokens = parse(command
-        .replaceAll('"', `"${DOUBLE_QUOTE}`)
-        .replaceAll("'", `'${SINGLE_QUOTE}`), varName => `$${varName}`);
-    for (let i = 0; i < tokens.length; i++) {
-        const token = tokens[i];
-        const next = tokens[i + 1];
-        if (typeof token === 'string')
-            continue;
-        if (!token || typeof token !== 'object')
-            continue;
-        if ('comment' in token)
-            return false;
-        if (!('op' in token))
-            continue;
-        const op = token.op;
-        if (op === 'glob')
-            continue;
-        if (COMMAND_LIST_SEPARATORS.has(op))
-            continue;
-        if (op === '>&') {
-            if (typeof next === 'string' && ['0', '1', '2'].includes(next.trim()))
-                continue;
-        }
-        if (op === '>' || op === '>>')
-            continue;
-        return false;
+  const tokens = parse(
+    command
+      .replaceAll('"', `"${DOUBLE_QUOTE}`)
+      .replaceAll("'", `'${SINGLE_QUOTE}`),
+    (varName) => `$${varName}`,
+  );
+  for (let i = 0; i < tokens.length; i++) {
+    const token = tokens[i];
+    const next = tokens[i + 1];
+    if (typeof token === "string") continue;
+    if (!token || typeof token !== "object") continue;
+    if ("comment" in token) return false;
+    if (!("op" in token)) continue;
+    const op = token.op;
+    if (op === "glob") continue;
+    if (COMMAND_LIST_SEPARATORS.has(op)) continue;
+    if (op === ">&") {
+      if (typeof next === "string" && ["0", "1", "2"].includes(next.trim()))
+        continue;
     }
-    return true;
+    if (op === ">" || op === ">>") continue;
+    return false;
+  }
+  return true;
 }
 export function isUnsafeCompoundCommand(command) {
-    return splitCommand(command).length > 1 && !isCommandList(command);
+  return splitCommand(command).length > 1 && !isCommandList(command);
 }
 //# sourceMappingURL=index.js.map

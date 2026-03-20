@@ -1,16 +1,16 @@
-import React from 'react'
-import { Box, Text } from 'ink'
-import { getTheme } from '@utils/theme'
+import React from "react";
+import { Box, Text } from "ink";
+import { getTheme } from "@utils/theme";
 
-export type ScreenContainerExitState = { pending: boolean; keyName: string }
+export type ScreenContainerExitState = { pending: boolean; keyName: string };
 
 type Props = {
-  title: string
-  exitState: ScreenContainerExitState
-  children: React.ReactNode
-  paddingY?: number
-  gap?: number
-}
+  title: string;
+  exitState: ScreenContainerExitState;
+  children: React.ReactNode;
+  paddingY?: number;
+  gap?: number;
+};
 
 export function ScreenContainer({
   title,
@@ -19,7 +19,7 @@ export function ScreenContainer({
   paddingY = 1,
   gap = 1,
 }: Props) {
-  const theme = getTheme()
+  const theme = getTheme();
   return (
     <Box
       flexDirection="column"
@@ -30,10 +30,10 @@ export function ScreenContainer({
       paddingY={paddingY}
     >
       <Text bold>
-        {title}{' '}
-        {exitState.pending ? `(press ${exitState.keyName} again to exit)` : ''}
+        {title}{" "}
+        {exitState.pending ? `(press ${exitState.keyName} again to exit)` : ""}
       </Text>
       {children}
     </Box>
-  )
+  );
 }

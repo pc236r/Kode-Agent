@@ -1,40 +1,40 @@
-import * as React from 'react'
-import { captureException } from '@services/sentry'
+import * as React from "react";
+import { captureException } from "@services/sentry";
 
 interface Props {
-  children: React.ReactNode
+  children: React.ReactNode;
 }
 
 interface State {
-  hasError: boolean
+  hasError: boolean;
 }
 
 export class SentryErrorBoundary extends React.Component<Props, State> {
   constructor(props: Props) {
-    super(props)
-    ;(this as any).state = { hasError: false }
+    super(props);
+    (this as any).state = { hasError: false };
   }
 
   static getDerivedStateFromError(): State {
-    return { hasError: true }
+    return { hasError: true };
   }
 
   componentDidCatch(error: Error): void {
     if (
-      error.name === 'AbortError' ||
-      error.message?.includes('abort') ||
-      error.message?.includes('The operation was aborted')
+      error.name === "AbortError" ||
+      error.message?.includes("abort") ||
+      error.message?.includes("The operation was aborted")
     ) {
-      return
+      return;
     }
-    captureException(error)
+    captureException(error);
   }
 
   render(): React.ReactNode {
     if ((this as any).state.hasError) {
-      return null
+      return null;
     }
 
-    return (this as any).props.children
+    return (this as any).props.children;
   }
 }

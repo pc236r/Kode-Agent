@@ -1,33 +1,41 @@
-import { SYNTHETIC_ASSISTANT_MESSAGES } from '@utils/messages';
+import { SYNTHETIC_ASSISTANT_MESSAGES } from "@utils/messages";
 export function countTokens(messages) {
-    let i = messages.length - 1;
-    while (i >= 0) {
-        const message = messages[i];
-        if (message?.type === 'assistant' &&
-            'usage' in message.message &&
-            !(message.message.content[0]?.type === 'text' &&
-                SYNTHETIC_ASSISTANT_MESSAGES.has(message.message.content[0].text))) {
-            const { usage } = message.message;
-            return (usage.input_tokens +
-                (usage.cache_creation_input_tokens ?? 0) +
-                (usage.cache_read_input_tokens ?? 0) +
-                usage.output_tokens);
-        }
-        i--;
+  let i = messages.length - 1;
+  while (i >= 0) {
+    const message = messages[i];
+    if (
+      message?.type === "assistant" &&
+      "usage" in message.message &&
+      !(
+        message.message.content[0]?.type === "text" &&
+        SYNTHETIC_ASSISTANT_MESSAGES.has(message.message.content[0].text)
+      )
+    ) {
+      const { usage } = message.message;
+      return (
+        usage.input_tokens +
+        (usage.cache_creation_input_tokens ?? 0) +
+        (usage.cache_read_input_tokens ?? 0) +
+        usage.output_tokens
+      );
     }
-    return 0;
+    i--;
+  }
+  return 0;
 }
 export function countCachedTokens(messages) {
-    let i = messages.length - 1;
-    while (i >= 0) {
-        const message = messages[i];
-        if (message?.type === 'assistant' && 'usage' in message.message) {
-            const { usage } = message.message;
-            return ((usage.cache_creation_input_tokens ?? 0) +
-                (usage.cache_read_input_tokens ?? 0));
-        }
-        i--;
+  let i = messages.length - 1;
+  while (i >= 0) {
+    const message = messages[i];
+    if (message?.type === "assistant" && "usage" in message.message) {
+      const { usage } = message.message;
+      return (
+        (usage.cache_creation_input_tokens ?? 0) +
+        (usage.cache_read_input_tokens ?? 0)
+      );
     }
-    return 0;
+    i--;
+  }
+  return 0;
 }
 //# sourceMappingURL=tokens.js.map

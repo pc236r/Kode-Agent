@@ -1,39 +1,41 @@
-import { type Tool } from '@tool'
-import { getTools, getReadOnlyTools } from '@tools'
-import { TaskTool } from './TaskTool'
-import { BashTool } from '@tools/BashTool/BashTool'
-import { FileWriteTool } from '@tools/FileWriteTool/FileWriteTool'
-import { FileEditTool } from '@tools/FileEditTool/FileEditTool'
-import { NotebookEditTool } from '@tools/NotebookEditTool/NotebookEditTool'
-import { GlobTool } from '@tools/GlobTool/GlobTool'
-import { FileReadTool } from '@tools/FileReadTool/FileReadTool'
-import { getModelManager } from '@utils/model'
-import { getActiveAgents } from '@utils/agent/loader'
+import { type Tool } from "@tool";
+import { getTools, getReadOnlyTools } from "@tools";
+import { TaskTool } from "./TaskTool";
+import { BashTool } from "@tools/BashTool/BashTool";
+import { FileWriteTool } from "@tools/FileWriteTool/FileWriteTool";
+import { FileEditTool } from "@tools/FileEditTool/FileEditTool";
+import { NotebookEditTool } from "@tools/NotebookEditTool/NotebookEditTool";
+import { GlobTool } from "@tools/GlobTool/GlobTool";
+import { FileReadTool } from "@tools/FileReadTool/FileReadTool";
+import { getModelManager } from "@utils/model";
+import { getActiveAgents } from "@utils/agent/loader";
 
 const SUBAGENT_DISALLOWED_TOOL_NAMES = new Set<string>([
-  'Task',
-  'TaskOutput',
-  'KillShell',
-  'EnterPlanMode',
-  'ExitPlanMode',
-  'AskUserQuestion',
-])
+  "Task",
+  "TaskOutput",
+  "KillShell",
+  "EnterPlanMode",
+  "ExitPlanMode",
+  "AskUserQuestion",
+]);
 
 export async function getTaskTools(safeMode: boolean): Promise<Tool[]> {
   return (await (!safeMode ? getTools() : getReadOnlyTools())).filter(
-    tool => !SUBAGENT_DISALLOWED_TOOL_NAMES.has(tool.name),
-  )
+    (tool) => !SUBAGENT_DISALLOWED_TOOL_NAMES.has(tool.name),
+  );
 }
 
 export async function getPrompt(safeMode: boolean): Promise<string> {
-  const agents = await getActiveAgents()
+  const agents = await getActiveAgents();
 
   const agentDescriptions = agents
-    .map(agent => {
-      const toolsStr = Array.isArray(agent.tools) ? agent.tools.join(', ') : '*'
-      return `- ${agent.agentType}: ${agent.whenToUse} (Tools: ${toolsStr})`
+    .map((agent) => {
+      const toolsStr = Array.isArray(agent.tools)
+        ? agent.tools.join(", ")
+        : "*";
+      return `- ${agent.agentType}: ${agent.whenToUse} (Tools: ${toolsStr})`;
     })
-    .join('\n')
+    .join("\n");
 
   return `Launch a new agent to handle complex, multi-step tasks autonomously. 
 
@@ -93,5 +95,5 @@ user: "Hello"
 Since the user is greeting, use the greeting-responder agent to respond with a friendly joke
 </commentary>
 assistant: "I'm going to use the Task tool to launch the with the greeting-responder agent"
-</example>`
+</example>`;
 }

@@ -1,11 +1,11 @@
-export const TOOL_NAME_FOR_PROMPT = 'WebSearch'
+export const TOOL_NAME_FOR_PROMPT = "WebSearch";
 
 function todayISO(): string {
-  const now = new Date()
-  const year = now.getFullYear()
-  const month = String(now.getMonth() + 1).padStart(2, '0')
-  const day = String(now.getDate()).padStart(2, '0')
-  return `${year}-${month}-${day}`
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
 }
 
 export const PROMPT = `
@@ -34,4 +34,4 @@ Usage notes:
 IMPORTANT - Use the correct year in search queries:
   - Today's date is ${todayISO()}. You MUST use this year when searching for recent information, documentation, or current events.
   - Example: If today is 2025-07-15 and the user asks for "latest React docs", search for "React documentation 2025", NOT "React documentation 2024"
-`.trim()
+`.trim();

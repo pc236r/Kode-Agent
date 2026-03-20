@@ -1,417 +1,396 @@
-import { existsSync, readFileSync, readdirSync, statSync, watch, } from 'fs';
-import { basename, dirname, join, resolve } from 'path';
-import { homedir } from 'os';
-import matter from 'gray-matter';
-import yaml from 'js-yaml';
-import { memoize } from 'lodash-es';
-import { z } from 'zod';
-import { getCwd } from '@utils/state';
-import { getSessionPlugins } from '@utils/session/sessionPlugins';
-import { isSettingSourceEnabled } from '@utils/config/settingSources';
-import { debug as debugLogger } from '@utils/log/debugLogger';
-import { logError } from '@utils/log';
+import { existsSync, readFileSync, readdirSync, statSync, watch } from "fs";
+import { basename, dirname, join, resolve } from "path";
+import { homedir } from "os";
+import matter from "gray-matter";
+import yaml from "js-yaml";
+import { memoize } from "lodash-es";
+import { z } from "zod";
+import { getCwd } from "@utils/state";
+import { getSessionPlugins } from "@utils/session/sessionPlugins";
+import { isSettingSourceEnabled } from "@utils/config/settingSources";
+import { debug as debugLogger } from "@utils/log/debugLogger";
+import { logError } from "@utils/log";
 function getClaudePolicyBaseDir() {
-    switch (process.platform) {
-        case 'darwin':
-            return '/Library/Application Support/ClaudeCode';
-        case 'win32':
-            return existsSync('C:\\Program Files\\ClaudeCode')
-                ? 'C:\\Program Files\\ClaudeCode'
-                : 'C:\\ProgramData\\ClaudeCode';
-        default:
-            return '/etc/claude-code';
-    }
+  switch (process.platform) {
+    case "darwin":
+      return "/Library/Application Support/ClaudeCode";
+    case "win32":
+      return existsSync("C:\\Program Files\\ClaudeCode")
+        ? "C:\\Program Files\\ClaudeCode"
+        : "C:\\ProgramData\\ClaudeCode";
+    default:
+      return "/etc/claude-code";
+  }
 }
 function normalizeOverride(value) {
-    if (typeof value !== 'string')
-        return null;
-    const trimmed = value.trim();
-    return trimmed ? resolve(trimmed) : null;
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  return trimmed ? resolve(trimmed) : null;
 }
 function dedupeStrings(values) {
-    const out = [];
-    const seen = new Set();
-    for (const value of values) {
-        if (!value)
-            continue;
-        if (seen.has(value))
-            continue;
-        seen.add(value);
-        out.push(value);
-    }
-    return out;
+  const out = [];
+  const seen = new Set();
+  for (const value of values) {
+    if (!value) continue;
+    if (seen.has(value)) continue;
+    seen.add(value);
+    out.push(value);
+  }
+  return out;
 }
 function getUserConfigRoots() {
-    const claudeOverride = normalizeOverride(process.env.CLAUDE_CONFIG_DIR);
-    const kodeOverride = normalizeOverride(process.env.KODE_CONFIG_DIR);
-    const hasAnyOverride = Boolean(claudeOverride || kodeOverride);
-    if (hasAnyOverride) {
-        return dedupeStrings([claudeOverride ?? '', kodeOverride ?? '']);
-    }
-    return dedupeStrings([join(homedir(), '.claude'), join(homedir(), '.kode')]);
+  const claudeOverride = normalizeOverride(process.env.CLAUDE_CONFIG_DIR);
+  const kodeOverride = normalizeOverride(process.env.KODE_CONFIG_DIR);
+  const hasAnyOverride = Boolean(claudeOverride || kodeOverride);
+  if (hasAnyOverride) {
+    return dedupeStrings([claudeOverride ?? "", kodeOverride ?? ""]);
+  }
+  return dedupeStrings([join(homedir(), ".claude"), join(homedir(), ".kode")]);
 }
 function findProjectAgentDirs(cwd) {
-    const result = [];
-    const home = resolve(homedir());
-    let current = resolve(cwd);
-    while (current !== home) {
-        const claudeDir = join(current, '.claude', 'agents');
-        if (existsSync(claudeDir))
-            result.push(claudeDir);
-        const kodeDir = join(current, '.kode', 'agents');
-        if (existsSync(kodeDir))
-            result.push(kodeDir);
-        const parent = dirname(current);
-        if (parent === current)
-            break;
-        current = parent;
-    }
-    return result;
+  const result = [];
+  const home = resolve(homedir());
+  let current = resolve(cwd);
+  while (current !== home) {
+    const claudeDir = join(current, ".claude", "agents");
+    if (existsSync(claudeDir)) result.push(claudeDir);
+    const kodeDir = join(current, ".kode", "agents");
+    if (existsSync(kodeDir)) result.push(kodeDir);
+    const parent = dirname(current);
+    if (parent === current) break;
+    current = parent;
+  }
+  return result;
 }
 function listMarkdownFilesRecursively(rootDir) {
-    const files = [];
-    const visitedDirs = new Set();
-    const walk = (dirPath) => {
-        let dirStat;
+  const files = [];
+  const visitedDirs = new Set();
+  const walk = (dirPath) => {
+    let dirStat;
+    try {
+      dirStat = statSync(dirPath);
+    } catch {
+      return;
+    }
+    if (!dirStat.isDirectory()) return;
+    const dirKey = `${dirStat.dev}:${dirStat.ino}`;
+    if (visitedDirs.has(dirKey)) return;
+    visitedDirs.add(dirKey);
+    let entries;
+    try {
+      entries = readdirSync(dirPath, {
+        withFileTypes: true,
+        encoding: "utf8",
+      });
+    } catch {
+      return;
+    }
+    for (const entry of entries) {
+      const name = String(entry.name ?? "");
+      const fullPath = join(dirPath, name);
+      if (entry.isDirectory()) {
+        walk(fullPath);
+        continue;
+      }
+      if (entry.isFile()) {
+        if (name.endsWith(".md")) files.push(fullPath);
+        continue;
+      }
+      if (entry.isSymbolicLink()) {
         try {
-            dirStat = statSync(dirPath);
+          const st = statSync(fullPath);
+          if (st.isDirectory()) {
+            walk(fullPath);
+          } else if (st.isFile() && name.endsWith(".md")) {
+            files.push(fullPath);
+          }
+        } catch {
+          continue;
         }
-        catch {
-            return;
-        }
-        if (!dirStat.isDirectory())
-            return;
-        const dirKey = `${dirStat.dev}:${dirStat.ino}`;
-        if (visitedDirs.has(dirKey))
-            return;
-        visitedDirs.add(dirKey);
-        let entries;
-        try {
-            entries = readdirSync(dirPath, {
-                withFileTypes: true,
-                encoding: 'utf8',
-            });
-        }
-        catch {
-            return;
-        }
-        for (const entry of entries) {
-            const name = String(entry.name ?? '');
-            const fullPath = join(dirPath, name);
-            if (entry.isDirectory()) {
-                walk(fullPath);
-                continue;
-            }
-            if (entry.isFile()) {
-                if (name.endsWith('.md'))
-                    files.push(fullPath);
-                continue;
-            }
-            if (entry.isSymbolicLink()) {
-                try {
-                    const st = statSync(fullPath);
-                    if (st.isDirectory()) {
-                        walk(fullPath);
-                    }
-                    else if (st.isFile() && name.endsWith('.md')) {
-                        files.push(fullPath);
-                    }
-                }
-                catch {
-                    continue;
-                }
-            }
-        }
-    };
-    if (!existsSync(rootDir))
-        return [];
-    walk(rootDir);
-    return files;
+      }
+    }
+  };
+  if (!existsSync(rootDir)) return [];
+  walk(rootDir);
+  return files;
 }
 function readMarkdownFile(filePath) {
-    try {
-        const raw = readFileSync(filePath, 'utf8');
-        const yamlSchema = yaml.JSON_SCHEMA;
-        const matterOptions = {
-            engines: {
-                yaml: {
-                    parse: (input) => yaml.load(input, yamlSchema ? { schema: yamlSchema } : undefined) ??
-                        {},
-                },
-            },
-        };
-        const parsed = matter(raw, matterOptions);
-        return {
-            frontmatter: parsed.data ?? {},
-            content: String(parsed.content ?? ''),
-        };
-    }
-    catch {
-        return null;
-    }
+  try {
+    const raw = readFileSync(filePath, "utf8");
+    const yamlSchema = yaml.JSON_SCHEMA;
+    const matterOptions = {
+      engines: {
+        yaml: {
+          parse: (input) =>
+            yaml.load(input, yamlSchema ? { schema: yamlSchema } : undefined) ??
+            {},
+        },
+      },
+    };
+    const parsed = matter(raw, matterOptions);
+    return {
+      frontmatter: parsed.data ?? {},
+      content: String(parsed.content ?? ""),
+    };
+  } catch {
+    return null;
+  }
 }
 function splitCliList(values) {
-    if (values.length === 0)
-        return [];
-    const out = [];
-    for (const value of values) {
-        if (!value)
-            continue;
-        let current = '';
-        let inParens = false;
-        for (const ch of value) {
-            switch (ch) {
-                case '(':
-                    inParens = true;
-                    current += ch;
-                    break;
-                case ')':
-                    inParens = false;
-                    current += ch;
-                    break;
-                case ',':
-                    if (inParens) {
-                        current += ch;
-                    }
-                    else {
-                        const trimmed = current.trim();
-                        if (trimmed)
-                            out.push(trimmed);
-                        current = '';
-                    }
-                    break;
-                case ' ':
-                    if (inParens) {
-                        current += ch;
-                    }
-                    else {
-                        const trimmed = current.trim();
-                        if (trimmed)
-                            out.push(trimmed);
-                        current = '';
-                    }
-                    break;
-                default:
-                    current += ch;
-            }
-        }
-        const trimmed = current.trim();
-        if (trimmed)
-            out.push(trimmed);
+  if (values.length === 0) return [];
+  const out = [];
+  for (const value of values) {
+    if (!value) continue;
+    let current = "";
+    let inParens = false;
+    for (const ch of value) {
+      switch (ch) {
+        case "(":
+          inParens = true;
+          current += ch;
+          break;
+        case ")":
+          inParens = false;
+          current += ch;
+          break;
+        case ",":
+          if (inParens) {
+            current += ch;
+          } else {
+            const trimmed = current.trim();
+            if (trimmed) out.push(trimmed);
+            current = "";
+          }
+          break;
+        case " ":
+          if (inParens) {
+            current += ch;
+          } else {
+            const trimmed = current.trim();
+            if (trimmed) out.push(trimmed);
+            current = "";
+          }
+          break;
+        default:
+          current += ch;
+      }
     }
-    return out;
+    const trimmed = current.trim();
+    if (trimmed) out.push(trimmed);
+  }
+  return out;
 }
 function normalizeToolList(value) {
-    if (value === undefined || value === null)
-        return null;
-    if (!value)
-        return [];
-    let raw = [];
-    if (typeof value === 'string')
-        raw = [value];
-    else if (Array.isArray(value))
-        raw = value.filter((v) => typeof v === 'string');
-    if (raw.length === 0)
-        return [];
-    const parsed = splitCliList(raw);
-    if (parsed.includes('*'))
-        return ['*'];
-    return parsed;
+  if (value === undefined || value === null) return null;
+  if (!value) return [];
+  let raw = [];
+  if (typeof value === "string") raw = [value];
+  else if (Array.isArray(value))
+    raw = value.filter((v) => typeof v === "string");
+  if (raw.length === 0) return [];
+  const parsed = splitCliList(raw);
+  if (parsed.includes("*")) return ["*"];
+  return parsed;
 }
 function z2A(value) {
-    const normalized = normalizeToolList(value);
-    if (normalized === null)
-        return value === undefined ? undefined : [];
-    if (normalized.includes('*'))
-        return undefined;
-    return normalized;
+  const normalized = normalizeToolList(value);
+  if (normalized === null) return value === undefined ? undefined : [];
+  if (normalized.includes("*")) return undefined;
+  return normalized;
 }
 function qP(value) {
-    const normalized = normalizeToolList(value);
-    if (normalized === null)
-        return [];
-    return normalized;
+  const normalized = normalizeToolList(value);
+  if (normalized === null) return [];
+  return normalized;
 }
 const VALID_PERMISSION_MODES = [
-    'default',
-    'acceptEdits',
-    'plan',
-    'bypassPermissions',
-    'dontAsk',
-    'delegate',
+  "default",
+  "acceptEdits",
+  "plan",
+  "bypassPermissions",
+  "dontAsk",
+  "delegate",
 ];
 function sourceToLocation(source) {
-    switch (source) {
-        case 'plugin':
-            return 'plugin';
-        case 'userSettings':
-            return 'user';
-        case 'projectSettings':
-            return 'project';
-        case 'built-in':
-        case 'flagSettings':
-        case 'policySettings':
-        default:
-            return 'built-in';
-    }
+  switch (source) {
+    case "plugin":
+      return "plugin";
+    case "userSettings":
+      return "user";
+    case "projectSettings":
+      return "project";
+    case "built-in":
+    case "flagSettings":
+    case "policySettings":
+    default:
+      return "built-in";
+  }
 }
 function parseAgentFromFile(options) {
-    const parsed = readMarkdownFile(options.filePath);
-    if (!parsed)
-        return null;
-    try {
-        const fm = parsed.frontmatter ?? {};
-        let name = fm.name;
-        let description = fm.description;
-        if (!name ||
-            typeof name !== 'string' ||
-            !description ||
-            typeof description !== 'string') {
-            return null;
-        }
-        const whenToUse = description.replace(/\\n/g, '\n');
-        const filename = basename(options.filePath, '.md');
-        const color = typeof fm.color === 'string' ? fm.color : undefined;
-        let modelRaw = fm.model;
-        if (typeof modelRaw !== 'string' && typeof fm.model_name === 'string') {
-            modelRaw = fm.model_name;
-        }
-        let model = typeof modelRaw === 'string' ? modelRaw.trim() : undefined;
-        if (model === '')
-            model = undefined;
-        const forkContextValue = fm.forkContext;
-        if (forkContextValue !== undefined &&
-            forkContextValue !== 'true' &&
-            forkContextValue !== 'false') {
-            debugLogger.warn('AGENT_LOADER_INVALID_FORK_CONTEXT', {
-                filePath: options.filePath,
-                forkContext: String(forkContextValue),
-            });
-        }
-        const forkContext = forkContextValue === 'true';
-        if (forkContext && model && model !== 'inherit') {
-            debugLogger.warn('AGENT_LOADER_FORK_CONTEXT_MODEL_OVERRIDE', {
-                filePath: options.filePath,
-                model,
-            });
-            model = 'inherit';
-        }
-        const permissionModeValue = fm.permissionMode;
-        const permissionModeIsValid = typeof permissionModeValue === 'string' &&
-            VALID_PERMISSION_MODES.includes(permissionModeValue);
-        if (typeof permissionModeValue === 'string' &&
-            permissionModeValue &&
-            !permissionModeIsValid) {
-            debugLogger.warn('AGENT_LOADER_INVALID_PERMISSION_MODE', {
-                filePath: options.filePath,
-                permissionMode: permissionModeValue,
-                valid: VALID_PERMISSION_MODES,
-            });
-        }
-        const toolsList = z2A(fm.tools);
-        const tools = toolsList === undefined || toolsList.includes('*') ? '*' : toolsList;
-        const disallowedRaw = fm.disallowedTools ?? fm['disallowed-tools'] ?? fm['disallowed_tools'];
-        const disallowedTools = disallowedRaw !== undefined ? z2A(disallowedRaw) : undefined;
-        const skills = qP(fm.skills);
-        const systemPrompt = parsed.content.trim();
-        const agent = {
-            agentType: name,
-            whenToUse,
-            tools,
-            ...(disallowedTools !== undefined ? { disallowedTools } : {}),
-            ...(skills.length > 0 ? { skills } : { skills: [] }),
-            systemPrompt,
-            source: options.source,
-            location: sourceToLocation(options.source),
-            baseDir: options.baseDir,
-            filename,
-            ...(color ? { color } : {}),
-            ...(model ? { model: model } : {}),
-            ...(permissionModeIsValid
-                ? { permissionMode: permissionModeValue }
-                : {}),
-            ...(forkContext ? { forkContext: true } : {}),
-        };
-        return agent;
+  const parsed = readMarkdownFile(options.filePath);
+  if (!parsed) return null;
+  try {
+    const fm = parsed.frontmatter ?? {};
+    let name = fm.name;
+    let description = fm.description;
+    if (
+      !name ||
+      typeof name !== "string" ||
+      !description ||
+      typeof description !== "string"
+    ) {
+      return null;
     }
-    catch {
-        return null;
+    const whenToUse = description.replace(/\\n/g, "\n");
+    const filename = basename(options.filePath, ".md");
+    const color = typeof fm.color === "string" ? fm.color : undefined;
+    let modelRaw = fm.model;
+    if (typeof modelRaw !== "string" && typeof fm.model_name === "string") {
+      modelRaw = fm.model_name;
     }
+    let model = typeof modelRaw === "string" ? modelRaw.trim() : undefined;
+    if (model === "") model = undefined;
+    const forkContextValue = fm.forkContext;
+    if (
+      forkContextValue !== undefined &&
+      forkContextValue !== "true" &&
+      forkContextValue !== "false"
+    ) {
+      debugLogger.warn("AGENT_LOADER_INVALID_FORK_CONTEXT", {
+        filePath: options.filePath,
+        forkContext: String(forkContextValue),
+      });
+    }
+    const forkContext = forkContextValue === "true";
+    if (forkContext && model && model !== "inherit") {
+      debugLogger.warn("AGENT_LOADER_FORK_CONTEXT_MODEL_OVERRIDE", {
+        filePath: options.filePath,
+        model,
+      });
+      model = "inherit";
+    }
+    const permissionModeValue = fm.permissionMode;
+    const permissionModeIsValid =
+      typeof permissionModeValue === "string" &&
+      VALID_PERMISSION_MODES.includes(permissionModeValue);
+    if (
+      typeof permissionModeValue === "string" &&
+      permissionModeValue &&
+      !permissionModeIsValid
+    ) {
+      debugLogger.warn("AGENT_LOADER_INVALID_PERMISSION_MODE", {
+        filePath: options.filePath,
+        permissionMode: permissionModeValue,
+        valid: VALID_PERMISSION_MODES,
+      });
+    }
+    const toolsList = z2A(fm.tools);
+    const tools =
+      toolsList === undefined || toolsList.includes("*") ? "*" : toolsList;
+    const disallowedRaw =
+      fm.disallowedTools ?? fm["disallowed-tools"] ?? fm["disallowed_tools"];
+    const disallowedTools =
+      disallowedRaw !== undefined ? z2A(disallowedRaw) : undefined;
+    const skills = qP(fm.skills);
+    const systemPrompt = parsed.content.trim();
+    const agent = {
+      agentType: name,
+      whenToUse,
+      tools,
+      ...(disallowedTools !== undefined ? { disallowedTools } : {}),
+      ...(skills.length > 0 ? { skills } : { skills: [] }),
+      systemPrompt,
+      source: options.source,
+      location: sourceToLocation(options.source),
+      baseDir: options.baseDir,
+      filename,
+      ...(color ? { color } : {}),
+      ...(model ? { model: model } : {}),
+      ...(permissionModeIsValid ? { permissionMode: permissionModeValue } : {}),
+      ...(forkContext ? { forkContext: true } : {}),
+    };
+    return agent;
+  } catch {
+    return null;
+  }
 }
 const agentJsonSchema = z.object({
-    description: z.string().min(1, 'Description cannot be empty'),
-    tools: z.array(z.string()).optional(),
-    disallowedTools: z.array(z.string()).optional(),
-    prompt: z.string().min(1, 'Prompt cannot be empty'),
-    model: z.string().optional(),
-    permissionMode: z.enum(VALID_PERMISSION_MODES).optional(),
+  description: z.string().min(1, "Description cannot be empty"),
+  tools: z.array(z.string()).optional(),
+  disallowedTools: z.array(z.string()).optional(),
+  prompt: z.string().min(1, "Prompt cannot be empty"),
+  model: z.string().optional(),
+  permissionMode: z.enum(VALID_PERMISSION_MODES).optional(),
 });
 const agentsJsonSchema = z.record(z.string(), agentJsonSchema);
 function parseAgentFromJson(agentType, value) {
-    const parsed = agentJsonSchema.safeParse(value);
-    if (!parsed.success)
-        return null;
-    const toolsList = z2A(parsed.data.tools);
-    const disallowedList = parsed.data.disallowedTools !== undefined
-        ? z2A(parsed.data.disallowedTools)
-        : undefined;
-    const model = typeof parsed.data.model === 'string' ? parsed.data.model.trim() : undefined;
-    return {
-        agentType,
-        whenToUse: parsed.data.description,
-        tools: toolsList === undefined || toolsList.includes('*') ? '*' : toolsList,
-        ...(disallowedList !== undefined
-            ? { disallowedTools: disallowedList }
-            : {}),
-        systemPrompt: parsed.data.prompt,
-        source: 'flagSettings',
-        location: 'built-in',
-        ...(model ? { model: model } : {}),
-        ...(parsed.data.permissionMode
-            ? { permissionMode: parsed.data.permissionMode }
-            : {}),
-    };
+  const parsed = agentJsonSchema.safeParse(value);
+  if (!parsed.success) return null;
+  const toolsList = z2A(parsed.data.tools);
+  const disallowedList =
+    parsed.data.disallowedTools !== undefined
+      ? z2A(parsed.data.disallowedTools)
+      : undefined;
+  const model =
+    typeof parsed.data.model === "string"
+      ? parsed.data.model.trim()
+      : undefined;
+  return {
+    agentType,
+    whenToUse: parsed.data.description,
+    tools: toolsList === undefined || toolsList.includes("*") ? "*" : toolsList,
+    ...(disallowedList !== undefined
+      ? { disallowedTools: disallowedList }
+      : {}),
+    systemPrompt: parsed.data.prompt,
+    source: "flagSettings",
+    location: "built-in",
+    ...(model ? { model: model } : {}),
+    ...(parsed.data.permissionMode
+      ? { permissionMode: parsed.data.permissionMode }
+      : {}),
+  };
 }
 let FLAG_AGENTS = [];
 export function setFlagAgentsFromCliJson(json) {
-    if (!json) {
-        FLAG_AGENTS = [];
-        clearAgentCache();
-        return;
-    }
-    let raw;
-    try {
-        raw = JSON.parse(json);
-    }
-    catch (err) {
-        logError(err);
-        debugLogger.warn('AGENT_LOADER_FLAG_AGENTS_JSON_PARSE_FAILED', {
-            error: err instanceof Error ? err.message : String(err),
-        });
-        FLAG_AGENTS = [];
-        clearAgentCache();
-        return;
-    }
-    const parsed = agentsJsonSchema.safeParse(raw);
-    if (!parsed.success) {
-        logError(parsed.error);
-        debugLogger.warn('AGENT_LOADER_FLAG_AGENTS_SCHEMA_INVALID', {
-            error: parsed.error.message,
-        });
-        FLAG_AGENTS = [];
-        clearAgentCache();
-        return;
-    }
-    FLAG_AGENTS = Object.entries(parsed.data)
-        .map(([agentType, value]) => parseAgentFromJson(agentType, value))
-        .filter((agent) => agent !== null);
+  if (!json) {
+    FLAG_AGENTS = [];
     clearAgentCache();
+    return;
+  }
+  let raw;
+  try {
+    raw = JSON.parse(json);
+  } catch (err) {
+    logError(err);
+    debugLogger.warn("AGENT_LOADER_FLAG_AGENTS_JSON_PARSE_FAILED", {
+      error: err instanceof Error ? err.message : String(err),
+    });
+    FLAG_AGENTS = [];
+    clearAgentCache();
+    return;
+  }
+  const parsed = agentsJsonSchema.safeParse(raw);
+  if (!parsed.success) {
+    logError(parsed.error);
+    debugLogger.warn("AGENT_LOADER_FLAG_AGENTS_SCHEMA_INVALID", {
+      error: parsed.error.message,
+    });
+    FLAG_AGENTS = [];
+    clearAgentCache();
+    return;
+  }
+  FLAG_AGENTS = Object.entries(parsed.data)
+    .map(([agentType, value]) => parseAgentFromJson(agentType, value))
+    .filter((agent) => agent !== null);
+  clearAgentCache();
 }
 const BUILTIN_GENERAL_PURPOSE = {
-    agentType: 'general-purpose',
-    whenToUse: 'General-purpose agent for researching complex questions, searching for code, and executing multi-step tasks',
-    tools: '*',
-    systemPrompt: `You are a general-purpose agent. Given the user's task, use the tools available to complete it efficiently and thoroughly.
+  agentType: "general-purpose",
+  whenToUse:
+    "General-purpose agent for researching complex questions, searching for code, and executing multi-step tasks",
+  tools: "*",
+  systemPrompt: `You are a general-purpose agent. Given the user's task, use the tools available to complete it efficiently and thoroughly.
 
 When to use your capabilities:
 - Searching for code, configurations, and patterns across large codebases
@@ -424,17 +403,18 @@ Guidelines:
 - For analysis: Start broad and narrow down. Use multiple search strategies if the first doesn't yield results.
 - Be thorough: Check multiple locations, consider different naming conventions, look for related files.
 - Complete tasks directly using your capabilities.`,
-    source: 'built-in',
-    location: 'built-in',
-    baseDir: 'built-in',
+  source: "built-in",
+  location: "built-in",
+  baseDir: "built-in",
 };
 const BUILTIN_EXPLORE = {
-    agentType: 'Explore',
-    whenToUse: 'Fast agent specialized for exploring codebases. Use this when you need to quickly find files by patterns (eg. "src/components/**/*.tsx"), search code for keywords (eg. "API endpoints"), or answer questions about the codebase (eg. "how do API endpoints work?"). When calling this agent, specify the desired thoroughness level: "quick" for basic searches, "medium" for moderate exploration, or "very thorough" for comprehensive analysis across multiple locations and naming conventions.',
-    tools: '*',
-    disallowedTools: ['Task', 'ExitPlanMode', 'Edit', 'Write', 'NotebookEdit'],
-    model: 'haiku',
-    systemPrompt: `You are a file search specialist. You excel at thoroughly navigating and exploring codebases.
+  agentType: "Explore",
+  whenToUse:
+    'Fast agent specialized for exploring codebases. Use this when you need to quickly find files by patterns (eg. "src/components/**/*.tsx"), search code for keywords (eg. "API endpoints"), or answer questions about the codebase (eg. "how do API endpoints work?"). When calling this agent, specify the desired thoroughness level: "quick" for basic searches, "medium" for moderate exploration, or "very thorough" for comprehensive analysis across multiple locations and naming conventions.',
+  tools: "*",
+  disallowedTools: ["Task", "ExitPlanMode", "Edit", "Write", "NotebookEdit"],
+  model: "haiku",
+  systemPrompt: `You are a file search specialist. You excel at thoroughly navigating and exploring codebases.
 
 === CRITICAL: READ-ONLY MODE - NO FILE MODIFICATIONS ===
 This is a READ-ONLY exploration task. You are STRICTLY PROHIBITED from:
@@ -469,17 +449,18 @@ NOTE: You are meant to be a fast agent that returns output as quickly as possibl
 - Wherever possible you should try to spawn multiple parallel tool calls for grepping and reading files
 
 Complete the user's search request efficiently and report your findings clearly.`,
-    source: 'built-in',
-    location: 'built-in',
-    baseDir: 'built-in',
+  source: "built-in",
+  location: "built-in",
+  baseDir: "built-in",
 };
 const BUILTIN_PLAN = {
-    agentType: 'Plan',
-    whenToUse: 'Software architect agent for designing implementation plans. Use this when you need to plan the implementation strategy for a task. Returns step-by-step plans, identifies critical files, and considers architectural trade-offs.',
-    tools: '*',
-    disallowedTools: ['Task', 'ExitPlanMode', 'Edit', 'Write', 'NotebookEdit'],
-    model: 'inherit',
-    systemPrompt: `You are a software architect and planning specialist. Your role is to explore the codebase and design implementation plans.
+  agentType: "Plan",
+  whenToUse:
+    "Software architect agent for designing implementation plans. Use this when you need to plan the implementation strategy for a task. Returns step-by-step plans, identifies critical files, and considers architectural trade-offs.",
+  tools: "*",
+  disallowedTools: ["Task", "ExitPlanMode", "Edit", "Write", "NotebookEdit"],
+  model: "inherit",
+  systemPrompt: `You are a software architect and planning specialist. Your role is to explore the codebase and design implementation plans.
 
 === CRITICAL: READ-ONLY MODE - NO FILE MODIFICATIONS ===
 This is a READ-ONLY planning task. You are STRICTLY PROHIBITED from:
@@ -529,15 +510,16 @@ List 3-5 files most critical for implementing this plan:
 - path/to/file3.ts - [Brief reason: e.g., "Pattern to follow"]
 
 REMEMBER: You can ONLY explore and plan. You CANNOT and MUST NOT write, edit, or modify any files. You do NOT have access to file editing tools.`,
-    source: 'built-in',
-    location: 'built-in',
-    baseDir: 'built-in',
+  source: "built-in",
+  location: "built-in",
+  baseDir: "built-in",
 };
 const BUILTIN_STATUSLINE_SETUP = {
-    agentType: 'statusline-setup',
-    whenToUse: 'Set up the CLI status line command (writes to ~/.kode/settings.json statusLine). Use when the user runs /statusline.',
-    tools: ['Read', 'Edit', 'Bash'],
-    systemPrompt: `You are the status line setup agent.
+  agentType: "statusline-setup",
+  whenToUse:
+    "Set up the CLI status line command (writes to ~/.kode/settings.json statusLine). Use when the user runs /statusline.",
+  tools: ["Read", "Edit", "Bash"],
+  systemPrompt: `You are the status line setup agent.
 
 Your job is to configure a fast, single-line status command for the CLI UI.
 
@@ -559,203 +541,202 @@ Suggested approach:
    - If the file does not exist, create it as a minimal JSON object.
    - Preserve unrelated fields if present.
 4) Reply with the exact command you set and how the user can change/remove it later.`,
-    source: 'built-in',
-    location: 'built-in',
-    baseDir: 'built-in',
+  source: "built-in",
+  location: "built-in",
+  baseDir: "built-in",
 };
 function mergeAgents(allAgents) {
-    const builtIn = allAgents.filter(a => a.source === 'built-in');
-    const plugin = allAgents.filter(a => a.source === 'plugin');
-    const user = allAgents.filter(a => a.source === 'userSettings');
-    const project = allAgents.filter(a => a.source === 'projectSettings');
-    const flag = allAgents.filter(a => a.source === 'flagSettings');
-    const policy = allAgents.filter(a => a.source === 'policySettings');
-    const ordered = [builtIn, plugin, user, project, flag, policy];
-    const map = new Map();
-    for (const group of ordered) {
-        for (const agent of group) {
-            map.set(agent.agentType, agent);
-        }
+  const builtIn = allAgents.filter((a) => a.source === "built-in");
+  const plugin = allAgents.filter((a) => a.source === "plugin");
+  const user = allAgents.filter((a) => a.source === "userSettings");
+  const project = allAgents.filter((a) => a.source === "projectSettings");
+  const flag = allAgents.filter((a) => a.source === "flagSettings");
+  const policy = allAgents.filter((a) => a.source === "policySettings");
+  const ordered = [builtIn, plugin, user, project, flag, policy];
+  const map = new Map();
+  for (const group of ordered) {
+    for (const agent of group) {
+      map.set(agent.agentType, agent);
     }
-    return Array.from(map.values());
+  }
+  return Array.from(map.values());
 }
 function inodeKeyForPath(filePath) {
-    try {
-        const st = statSync(filePath);
-        if (typeof st.dev === 'number' &&
-            typeof st.ino === 'number') {
-            return `${st.dev}:${st.ino}`;
-        }
-        return null;
+  try {
+    const st = statSync(filePath);
+    if (typeof st.dev === "number" && typeof st.ino === "number") {
+      return `${st.dev}:${st.ino}`;
     }
-    catch {
-        return null;
-    }
+    return null;
+  } catch {
+    return null;
+  }
 }
 function scanAgentPaths(options) {
-    const out = [];
-    const addFile = (filePath) => {
-        if (!filePath.endsWith('.md'))
-            return;
-        const inodeKey = inodeKeyForPath(filePath);
-        if (inodeKey) {
-            const existing = options.seenInodes.get(inodeKey);
-            if (existing)
-                return;
-            options.seenInodes.set(inodeKey, options.source);
-        }
-        const agent = parseAgentFromFile({
-            filePath,
-            baseDir: options.baseDir,
-            source: options.source,
-        });
-        if (agent)
-            out.push(agent);
-    };
-    let st;
-    try {
-        st = statSync(options.dirPathOrFile);
+  const out = [];
+  const addFile = (filePath) => {
+    if (!filePath.endsWith(".md")) return;
+    const inodeKey = inodeKeyForPath(filePath);
+    if (inodeKey) {
+      const existing = options.seenInodes.get(inodeKey);
+      if (existing) return;
+      options.seenInodes.set(inodeKey, options.source);
     }
-    catch {
-        return [];
-    }
-    if (st.isFile()) {
-        addFile(options.dirPathOrFile);
-        return out;
-    }
-    if (!st.isDirectory())
-        return [];
-    for (const filePath of listMarkdownFilesRecursively(options.dirPathOrFile)) {
-        addFile(filePath);
-    }
+    const agent = parseAgentFromFile({
+      filePath,
+      baseDir: options.baseDir,
+      source: options.source,
+    });
+    if (agent) out.push(agent);
+  };
+  let st;
+  try {
+    st = statSync(options.dirPathOrFile);
+  } catch {
+    return [];
+  }
+  if (st.isFile()) {
+    addFile(options.dirPathOrFile);
     return out;
+  }
+  if (!st.isDirectory()) return [];
+  for (const filePath of listMarkdownFilesRecursively(options.dirPathOrFile)) {
+    addFile(filePath);
+  }
+  return out;
 }
 async function loadAllAgents() {
-    const builtinAgents = [
-        BUILTIN_GENERAL_PURPOSE,
-        BUILTIN_STATUSLINE_SETUP,
-        BUILTIN_EXPLORE,
-        BUILTIN_PLAN,
-    ];
-    const seenInodes = new Map();
-    const sessionPlugins = getSessionPlugins();
-    const pluginAgentDirs = sessionPlugins.flatMap(p => p.agentsDirs ?? []);
-    const pluginAgents = pluginAgentDirs.flatMap(dir => scanAgentPaths({
-        dirPathOrFile: dir,
-        baseDir: dir,
-        source: 'plugin',
-        seenInodes,
-    }));
-    const policyAgentsDir = join(getClaudePolicyBaseDir(), '.claude', 'agents');
-    const policyAgents = scanAgentPaths({
-        dirPathOrFile: policyAgentsDir,
-        baseDir: policyAgentsDir,
-        source: 'policySettings',
-        seenInodes,
-    });
-    const userAgents = [];
-    if (isSettingSourceEnabled('userSettings')) {
-        for (const root of getUserConfigRoots()) {
-            const dir = join(root, 'agents');
-            userAgents.push(...scanAgentPaths({
-                dirPathOrFile: dir,
-                baseDir: dir,
-                source: 'userSettings',
-                seenInodes,
-            }));
-        }
+  const builtinAgents = [
+    BUILTIN_GENERAL_PURPOSE,
+    BUILTIN_STATUSLINE_SETUP,
+    BUILTIN_EXPLORE,
+    BUILTIN_PLAN,
+  ];
+  const seenInodes = new Map();
+  const sessionPlugins = getSessionPlugins();
+  const pluginAgentDirs = sessionPlugins.flatMap((p) => p.agentsDirs ?? []);
+  const pluginAgents = pluginAgentDirs.flatMap((dir) =>
+    scanAgentPaths({
+      dirPathOrFile: dir,
+      baseDir: dir,
+      source: "plugin",
+      seenInodes,
+    }),
+  );
+  const policyAgentsDir = join(getClaudePolicyBaseDir(), ".claude", "agents");
+  const policyAgents = scanAgentPaths({
+    dirPathOrFile: policyAgentsDir,
+    baseDir: policyAgentsDir,
+    source: "policySettings",
+    seenInodes,
+  });
+  const userAgents = [];
+  if (isSettingSourceEnabled("userSettings")) {
+    for (const root of getUserConfigRoots()) {
+      const dir = join(root, "agents");
+      userAgents.push(
+        ...scanAgentPaths({
+          dirPathOrFile: dir,
+          baseDir: dir,
+          source: "userSettings",
+          seenInodes,
+        }),
+      );
     }
-    const projectAgents = [];
-    if (isSettingSourceEnabled('projectSettings')) {
-        const dirs = findProjectAgentDirs(getCwd());
-        for (const dir of dirs) {
-            projectAgents.push(...scanAgentPaths({
-                dirPathOrFile: dir,
-                baseDir: dir,
-                source: 'projectSettings',
-                seenInodes,
-            }));
-        }
+  }
+  const projectAgents = [];
+  if (isSettingSourceEnabled("projectSettings")) {
+    const dirs = findProjectAgentDirs(getCwd());
+    for (const dir of dirs) {
+      projectAgents.push(
+        ...scanAgentPaths({
+          dirPathOrFile: dir,
+          baseDir: dir,
+          source: "projectSettings",
+          seenInodes,
+        }),
+      );
     }
-    const allAgents = [
-        ...builtinAgents,
-        ...pluginAgents,
-        ...userAgents,
-        ...projectAgents,
-        ...FLAG_AGENTS,
-        ...policyAgents,
-    ];
-    const activeAgents = mergeAgents(allAgents);
-    return { activeAgents, allAgents };
+  }
+  const allAgents = [
+    ...builtinAgents,
+    ...pluginAgents,
+    ...userAgents,
+    ...projectAgents,
+    ...FLAG_AGENTS,
+    ...policyAgents,
+  ];
+  const activeAgents = mergeAgents(allAgents);
+  return { activeAgents, allAgents };
 }
 export const getActiveAgents = memoize(async () => {
-    const { activeAgents } = await loadAllAgents();
-    return activeAgents;
+  const { activeAgents } = await loadAllAgents();
+  return activeAgents;
 });
 export const getAllAgents = memoize(async () => {
-    const { allAgents } = await loadAllAgents();
-    return allAgents;
+  const { allAgents } = await loadAllAgents();
+  return allAgents;
 });
 export const getAgentByType = memoize(async (agentType) => {
-    const agents = await getActiveAgents();
-    return agents.find(agent => agent.agentType === agentType);
+  const agents = await getActiveAgents();
+  return agents.find((agent) => agent.agentType === agentType);
 });
 export const getAvailableAgentTypes = memoize(async () => {
-    const agents = await getActiveAgents();
-    return agents.map(agent => agent.agentType);
+  const agents = await getActiveAgents();
+  return agents.map((agent) => agent.agentType);
 });
 export function clearAgentCache() {
-    getActiveAgents.cache?.clear?.();
-    getAllAgents.cache?.clear?.();
-    getAgentByType.cache?.clear?.();
-    getAvailableAgentTypes.cache?.clear?.();
+  getActiveAgents.cache?.clear?.();
+  getAllAgents.cache?.clear?.();
+  getAgentByType.cache?.clear?.();
+  getAvailableAgentTypes.cache?.clear?.();
 }
 let watchers = [];
 export async function startAgentWatcher(onChange) {
-    await stopAgentWatcher();
-    const watchDirs = [];
-    watchDirs.push(join(getClaudePolicyBaseDir(), '.claude', 'agents'));
-    if (isSettingSourceEnabled('userSettings')) {
-        for (const root of getUserConfigRoots()) {
-            watchDirs.push(join(root, 'agents'));
-        }
+  await stopAgentWatcher();
+  const watchDirs = [];
+  watchDirs.push(join(getClaudePolicyBaseDir(), ".claude", "agents"));
+  if (isSettingSourceEnabled("userSettings")) {
+    for (const root of getUserConfigRoots()) {
+      watchDirs.push(join(root, "agents"));
     }
-    if (isSettingSourceEnabled('projectSettings')) {
-        watchDirs.push(...findProjectAgentDirs(getCwd()));
+  }
+  if (isSettingSourceEnabled("projectSettings")) {
+    watchDirs.push(...findProjectAgentDirs(getCwd()));
+  }
+  for (const plugin of getSessionPlugins()) {
+    for (const dir of plugin.agentsDirs ?? []) {
+      watchDirs.push(dir);
     }
-    for (const plugin of getSessionPlugins()) {
-        for (const dir of plugin.agentsDirs ?? []) {
-            watchDirs.push(dir);
-        }
+  }
+  for (const dirPath of dedupeStrings(watchDirs)) {
+    if (!existsSync(dirPath)) continue;
+    try {
+      const watcher = watch(
+        dirPath,
+        { recursive: false },
+        async (_eventType, filename) => {
+          if (filename && filename.endsWith(".md")) {
+            clearAgentCache();
+            onChange?.();
+          }
+        },
+      );
+      watchers.push(watcher);
+    } catch {
+      continue;
     }
-    for (const dirPath of dedupeStrings(watchDirs)) {
-        if (!existsSync(dirPath))
-            continue;
-        try {
-            const watcher = watch(dirPath, { recursive: false }, async (_eventType, filename) => {
-                if (filename && filename.endsWith('.md')) {
-                    clearAgentCache();
-                    onChange?.();
-                }
-            });
-            watchers.push(watcher);
-        }
-        catch {
-            continue;
-        }
-    }
+  }
 }
 export async function stopAgentWatcher() {
-    try {
-        for (const watcher of watchers) {
-            try {
-                watcher.close();
-            }
-            catch { }
-        }
+  try {
+    for (const watcher of watchers) {
+      try {
+        watcher.close();
+      } catch {}
     }
-    finally {
-        watchers = [];
-    }
+  } finally {
+    watchers = [];
+  }
 }
 //# sourceMappingURL=loader.js.map

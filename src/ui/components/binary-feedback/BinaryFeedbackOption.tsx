@@ -1,25 +1,25 @@
-import { FileEditTool } from '@tools/FileEditTool/FileEditTool'
-import { FileEditToolDiff } from '@components/permissions/file-edit-permission-request/FileEditToolDiff'
-import { Message } from '@components/Message'
-import { normalizeMessages, type NormalizedMessage } from '@utils/messages'
-import type { Tool } from '@tool'
-import { useTerminalSize } from '@hooks/useTerminalSize'
-import { FileWriteTool } from '@tools/FileWriteTool/FileWriteTool'
-import { FileWriteToolDiff } from '@components/permissions/file-write-permission-request/FileWriteToolDiff'
-import type { AssistantMessage } from '@query'
-import * as React from 'react'
-import { Box } from 'ink'
+import { FileEditTool } from "@tools/FileEditTool/FileEditTool";
+import { FileEditToolDiff } from "@components/permissions/file-edit-permission-request/FileEditToolDiff";
+import { Message } from "@components/Message";
+import { normalizeMessages, type NormalizedMessage } from "@utils/messages";
+import type { Tool } from "@tool";
+import { useTerminalSize } from "@hooks/useTerminalSize";
+import { FileWriteTool } from "@tools/FileWriteTool/FileWriteTool";
+import { FileWriteToolDiff } from "@components/permissions/file-write-permission-request/FileWriteToolDiff";
+import type { AssistantMessage } from "@query";
+import * as React from "react";
+import { Box } from "ink";
 
 type Props = {
-  debug: boolean
-  erroredToolUseIDs: Set<string>
-  inProgressToolUseIDs: Set<string>
-  message: AssistantMessage
-  normalizedMessages: NormalizedMessage[]
-  tools: Tool[]
-  unresolvedToolUseIDs: Set<string>
-  verbose: boolean
-}
+  debug: boolean;
+  erroredToolUseIDs: Set<string>;
+  inProgressToolUseIDs: Set<string>;
+  message: AssistantMessage;
+  normalizedMessages: NormalizedMessage[];
+  tools: Tool[];
+  unresolvedToolUseIDs: Set<string>;
+  verbose: boolean;
+};
 
 export function BinaryFeedbackOption({
   debug,
@@ -31,9 +31,9 @@ export function BinaryFeedbackOption({
   unresolvedToolUseIDs,
   verbose,
 }: Props): React.ReactNode {
-  const { columns } = useTerminalSize()
+  const { columns } = useTerminalSize();
   return normalizeMessages([message])
-    .filter(_ => _.type !== 'progress')
+    .filter((_) => _.type !== "progress")
     .map((_, index) => (
       <Box flexDirection="column" key={index}>
         <Message
@@ -52,28 +52,28 @@ export function BinaryFeedbackOption({
         />
         <AdditionalContext message={_} verbose={verbose} />
       </Box>
-    ))
+    ));
 }
 
 function AdditionalContext({
   message,
   verbose,
 }: {
-  message: NormalizedMessage
-  verbose: boolean
+  message: NormalizedMessage;
+  verbose: boolean;
 }) {
-  const { columns } = useTerminalSize()
-  if (message.type !== 'assistant') {
-    return null
+  const { columns } = useTerminalSize();
+  if (message.type !== "assistant") {
+    return null;
   }
-  const content = message.message.content[0]!
+  const content = message.message.content[0]!;
   switch (content.type) {
-    case 'tool_use':
+    case "tool_use":
       switch (content.name) {
         case FileEditTool.name: {
-          const input = FileEditTool.inputSchema.safeParse(content.input)
+          const input = FileEditTool.inputSchema.safeParse(content.input);
           if (!input.success) {
-            return null
+            return null;
           }
           return (
             <FileEditToolDiff
@@ -83,12 +83,12 @@ function AdditionalContext({
               verbose={verbose}
               width={columns / 2 - 12}
             />
-          )
+          );
         }
         case FileWriteTool.name: {
-          const input = FileWriteTool.inputSchema.safeParse(content.input)
+          const input = FileWriteTool.inputSchema.safeParse(content.input);
           if (!input.success) {
-            return null
+            return null;
           }
           return (
             <FileWriteToolDiff
@@ -97,12 +97,12 @@ function AdditionalContext({
               verbose={verbose}
               width={columns / 2 - 12}
             />
-          )
+          );
         }
         default:
-          return null
+          return null;
       }
     default:
-      return null
+      return null;
   }
 }

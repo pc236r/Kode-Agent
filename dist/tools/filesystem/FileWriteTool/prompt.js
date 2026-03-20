@@ -1,4 +1,4 @@
-import { FileReadTool } from '@tools/FileReadTool/FileReadTool';
+import { FileReadTool } from "@tools/FileReadTool/FileReadTool";
 export const PROMPT = `Writes a file to the local filesystem.
 
 Usage:

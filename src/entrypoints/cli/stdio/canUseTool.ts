@@ -1,15 +1,15 @@
 export function createStdioCanUseTool(args: {
-  normalizedPermissionPromptTool: string | null
-  structured: any | null
-  permissionTimeoutMs: number
-  cwd: string
-  printOptions: any
-  hasPermissionsToUseTool: any
-  applyToolPermissionContextUpdates: any
-  persistToolPermissionUpdateToDisk: any
+  normalizedPermissionPromptTool: string | null;
+  structured: any | null;
+  permissionTimeoutMs: number;
+  cwd: string;
+  printOptions: any;
+  hasPermissionsToUseTool: any;
+  applyToolPermissionContextUpdates: any;
+  persistToolPermissionUpdateToDisk: any;
 }): any {
-  if (args.normalizedPermissionPromptTool !== 'stdio' || !args.structured) {
-    return args.hasPermissionsToUseTool
+  if (args.normalizedPermissionPromptTool !== "stdio" || !args.structured) {
+    return args.hasPermissionsToUseTool;
   }
 
   return (async (
@@ -23,42 +23,42 @@ export function createStdioCanUseTool(args: {
       input,
       toolUseContext,
       assistantMessage,
-    )
+    );
 
-    if (base.result === true) return { result: true as const }
+    if (base.result === true) return { result: true as const };
 
-    const denied = base as Extract<typeof base, { result: false }>
+    const denied = base as Extract<typeof base, { result: false }>;
     if (denied.shouldPromptUser === false) {
-      return { result: false as const, message: denied.message }
+      return { result: false as const, message: denied.message };
     }
 
     try {
       const blockedPath =
-        typeof (denied as any).blockedPath === 'string'
+        typeof (denied as any).blockedPath === "string"
           ? String((denied as any).blockedPath)
-          : typeof (input as any)?.file_path === 'string'
+          : typeof (input as any)?.file_path === "string"
             ? String((input as any).file_path)
-            : typeof (input as any)?.notebook_path === 'string'
+            : typeof (input as any)?.notebook_path === "string"
               ? String((input as any).notebook_path)
-              : typeof (input as any)?.path === 'string'
+              : typeof (input as any)?.path === "string"
                 ? String((input as any).path)
-                : undefined
+                : undefined;
 
       const decisionReason =
-        typeof (denied as any).decisionReason === 'string'
+        typeof (denied as any).decisionReason === "string"
           ? String((denied as any).decisionReason)
-          : undefined
+          : undefined;
 
       const response = await args.structured.sendRequest(
         {
-          subtype: 'can_use_tool',
+          subtype: "can_use_tool",
           tool_name: tool.name,
           input,
-          ...(typeof toolUseContext?.toolUseId === 'string' &&
+          ...(typeof toolUseContext?.toolUseId === "string" &&
           toolUseContext.toolUseId
             ? { tool_use_id: toolUseContext.toolUseId }
             : {}),
-          ...(typeof toolUseContext?.agentId === 'string' &&
+          ...(typeof toolUseContext?.agentId === "string" &&
           toolUseContext.agentId
             ? { agent_id: toolUseContext.agentId }
             : {}),
@@ -74,68 +74,68 @@ export function createStdioCanUseTool(args: {
           signal: toolUseContext.abortController.signal,
           timeoutMs: args.permissionTimeoutMs,
         },
-      )
+      );
 
-      if (response && (response as any).behavior === 'allow') {
+      if (response && (response as any).behavior === "allow") {
         const updatedInput =
           (response as any).updatedInput &&
-          typeof (response as any).updatedInput === 'object'
+          typeof (response as any).updatedInput === "object"
             ? (response as any).updatedInput
-            : null
+            : null;
         if (updatedInput) {
-          Object.assign(input, updatedInput)
+          Object.assign(input, updatedInput);
         }
 
-        const updatedPermissionsRaw = (response as any).updatedPermissions
+        const updatedPermissionsRaw = (response as any).updatedPermissions;
         const updatedPermissions =
           Array.isArray(updatedPermissionsRaw) &&
           updatedPermissionsRaw.every(
-            u =>
-              u && typeof u === 'object' && typeof (u as any).type === 'string',
+            (u) =>
+              u && typeof u === "object" && typeof (u as any).type === "string",
           )
             ? (updatedPermissionsRaw as any[])
-            : null
+            : null;
 
         if (updatedPermissions && args.printOptions.toolPermissionContext) {
           const next = args.applyToolPermissionContextUpdates(
             args.printOptions.toolPermissionContext,
             updatedPermissions as any,
-          )
-          args.printOptions.toolPermissionContext = next
+          );
+          args.printOptions.toolPermissionContext = next;
           if (toolUseContext?.options) {
-            toolUseContext.options.toolPermissionContext = next
+            toolUseContext.options.toolPermissionContext = next;
           }
           for (const update of updatedPermissions as any) {
             args.persistToolPermissionUpdateToDisk({
               update,
               projectDir: args.cwd,
-            })
+            });
           }
         }
 
-        return { result: true as const }
+        return { result: true as const };
       }
 
-      if (response && (response as any).behavior === 'deny') {
+      if (response && (response as any).behavior === "deny") {
         if ((response as any).interrupt === true) {
-          toolUseContext.abortController.abort()
+          toolUseContext.abortController.abort();
         }
       }
 
       return {
         result: false as const,
         message:
-          typeof (response as any)?.message === 'string'
+          typeof (response as any)?.message === "string"
             ? String((response as any).message)
             : denied.message,
-      }
+      };
     } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e)
+      const msg = e instanceof Error ? e.message : String(e);
       return {
         result: false as const,
         message: `Permission prompt failed: ${msg}`,
         shouldPromptUser: false,
-      }
+      };
     }
-  }) as any
+  }) as any;
 }

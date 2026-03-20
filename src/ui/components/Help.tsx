@@ -1,51 +1,51 @@
-import { Command } from '@commands'
-import { PRODUCT_COMMAND, PRODUCT_NAME } from '@constants/product'
+import { Command } from "@commands";
+import { PRODUCT_COMMAND, PRODUCT_NAME } from "@constants/product";
 import {
   getCustomCommandDirectories,
   hasCustomCommands,
   type CustomCommandWithScope,
-} from '@services/customCommands'
-import * as React from 'react'
-import { Box, Text, useInput } from 'ink'
-import { getTheme } from '@utils/theme'
-import { PressEnterToContinue } from './PressEnterToContinue'
-import { MACRO } from '@constants/macros'
+} from "@services/customCommands";
+import * as React from "react";
+import { Box, Text, useInput } from "ink";
+import { getTheme } from "@utils/theme";
+import { PressEnterToContinue } from "./PressEnterToContinue";
+import { MACRO } from "@constants/macros";
 
 export function Help({
   commands,
   onClose,
 }: {
-  commands: Command[]
-  onClose: () => void
+  commands: Command[];
+  onClose: () => void;
 }): React.ReactNode {
-  const theme = getTheme()
-  const moreHelp = `Learn more at: ${MACRO.README_URL}`
+  const theme = getTheme();
+  const moreHelp = `Learn more at: ${MACRO.README_URL}`;
 
-  const filteredCommands = commands.filter(cmd => !cmd.isHidden)
+  const filteredCommands = commands.filter((cmd) => !cmd.isHidden);
 
   const customCommands = filteredCommands.filter(
-    cmd => (cmd as any).scope === 'project' || (cmd as any).scope === 'user',
-  ) as CustomCommandWithScope[]
+    (cmd) => (cmd as any).scope === "project" || (cmd as any).scope === "user",
+  ) as CustomCommandWithScope[];
 
   const builtInCommands = filteredCommands.filter(
-    cmd => !customCommands.includes(cmd as any),
-  )
+    (cmd) => !customCommands.includes(cmd as any),
+  );
 
-  const [count, setCount] = React.useState(0)
+  const [count, setCount] = React.useState(0);
 
   React.useEffect(() => {
     const timer = setTimeout(() => {
       if (count < 3) {
-        setCount(count + 1)
+        setCount(count + 1);
       }
-    }, 250)
+    }, 250);
 
-    return () => clearTimeout(timer)
-  }, [count])
+    return () => clearTimeout(timer);
+  }, [count]);
 
   useInput((_, key) => {
-    if (key.return) onClose()
-  })
+    if (key.return) onClose();
+  });
 
   return (
     <Box flexDirection="column" padding={1}>
@@ -55,8 +55,8 @@ export function Help({
 
       <Box marginTop={1} flexDirection="column">
         <Text>
-          {PRODUCT_NAME} is a beta research preview. Always review{' '}
-          {PRODUCT_NAME}&apos;s responses, especially when running code.{' '}
+          {PRODUCT_NAME} is a beta research preview. Always review{" "}
+          {PRODUCT_NAME}&apos;s responses, especially when running code.{" "}
           {PRODUCT_NAME} has read access to files in the current directory and
           can run commands and edit files with your permission.
         </Text>
@@ -69,7 +69,7 @@ export function Help({
             • REPL: <Text bold>{PRODUCT_COMMAND}</Text> (interactive session)
           </Text>
           <Text>
-            • Non-interactive:{' '}
+            • Non-interactive:{" "}
             <Text bold>{PRODUCT_COMMAND} -p &quot;question&quot;</Text>
           </Text>
           <Box marginTop={1}>
@@ -85,27 +85,27 @@ export function Help({
         <Box marginTop={1} flexDirection="column">
           <Text bold>Common Tasks:</Text>
           <Text>
-            • Ask questions about your codebase{' '}
+            • Ask questions about your codebase{" "}
             <Text color={getTheme().secondaryText}>
               &gt; How does foo.py work?
             </Text>
           </Text>
           <Text>
-            • Edit files{' '}
+            • Edit files{" "}
             <Text color={getTheme().secondaryText}>
               &gt; Update bar.ts to...
             </Text>
           </Text>
           <Text>
-            • Fix errors{' '}
+            • Fix errors{" "}
             <Text color={getTheme().secondaryText}>&gt; cargo build</Text>
           </Text>
           <Text>
-            • Run commands{' '}
+            • Run commands{" "}
             <Text color={getTheme().secondaryText}>&gt; /help</Text>
           </Text>
           <Text>
-            • Run bash commands{' '}
+            • Run bash commands{" "}
             <Text color={getTheme().secondaryText}>&gt; !ls</Text>
           </Text>
         </Box>
@@ -137,8 +137,8 @@ export function Help({
                     <Text> - {cmd.description}</Text>
                     {cmd.aliases && cmd.aliases.length > 0 && (
                       <Text color={theme.secondaryText}>
-                        {' '}
-                        (aliases: {cmd.aliases.join(', ')})
+                        {" "}
+                        (aliases: {cmd.aliases.join(", ")})
                       </Text>
                     )}
                     {cmd.scope && (
@@ -160,7 +160,7 @@ export function Help({
                 user scope)
               </Text>
               <Text color={theme.secondaryText}>
-                • {getCustomCommandDirectories().projectClaudeCommands}{' '}
+                • {getCustomCommandDirectories().projectClaudeCommands}{" "}
                 (`.claude` project scope)
               </Text>
               <Text color={theme.secondaryText}>Skills loaded from:</Text>
@@ -186,7 +186,7 @@ export function Help({
                 user scope)
               </Text>
               <Text color={theme.secondaryText}>
-                • {getCustomCommandDirectories().projectClaudeCommands}{' '}
+                • {getCustomCommandDirectories().projectClaudeCommands}{" "}
                 (`.claude` project scope)
               </Text>
               <Text color={theme.secondaryText}>
@@ -216,5 +216,5 @@ export function Help({
         <PressEnterToContinue />
       </Box>
     </Box>
-  )
+  );
 }

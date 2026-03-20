@@ -1,17 +1,17 @@
-import type { BoxProps, TextProps } from 'ink'
+import type { BoxProps, TextProps } from "ink";
 
 export interface Theme {
   styles: {
-    container(): BoxProps
+    container(): BoxProps;
 
-    option(props: { isFocused: boolean }): BoxProps
+    option(props: { isFocused: boolean }): BoxProps;
 
-    focusIndicator(): TextProps
+    focusIndicator(): TextProps;
 
-    label(props: { isFocused: boolean; isSelected: boolean }): TextProps
+    label(props: { isFocused: boolean; isSelected: boolean }): TextProps;
 
-    selectedIndicator(): TextProps
+    selectedIndicator(): TextProps;
 
-    highlightedText(): TextProps
-  }
+    highlightedText(): TextProps;
+  };
 }

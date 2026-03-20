@@ -1,44 +1,44 @@
-import type { Key } from 'ink'
-import type { InputShortcut } from '@utils/terminal/permissionModeCycleShortcut'
+import type { Key } from "ink";
+import type { InputShortcut } from "@utils/terminal/permissionModeCycleShortcut";
 
-type KeyWithOption = Key & { option?: boolean }
+type KeyWithOption = Key & { option?: boolean };
 
 export type PromptInputSpecialKeyAction =
-  | 'modeCycle'
-  | 'modelSwitch'
-  | 'externalEditor'
-  | null
+  | "modeCycle"
+  | "modelSwitch"
+  | "externalEditor"
+  | null;
 
 export function getPromptInputSpecialKeyAction(args: {
-  inputChar: string
-  key: KeyWithOption
-  modeCycleShortcut: InputShortcut
+  inputChar: string;
+  key: KeyWithOption;
+  modeCycleShortcut: InputShortcut;
 }): PromptInputSpecialKeyAction {
   if (args.modeCycleShortcut.check(args.inputChar, args.key)) {
-    return 'modeCycle'
+    return "modeCycle";
   }
 
-  const optionOrMeta = Boolean(args.key.meta) || Boolean(args.key.option)
+  const optionOrMeta = Boolean(args.key.meta) || Boolean(args.key.option);
 
   if (
-    args.inputChar === 'µ' ||
-    (optionOrMeta && (args.inputChar === 'm' || args.inputChar === 'M'))
+    args.inputChar === "µ" ||
+    (optionOrMeta && (args.inputChar === "m" || args.inputChar === "M"))
   ) {
-    return 'modelSwitch'
+    return "modelSwitch";
   }
 
   if (
-    args.inputChar === '©' ||
-    (optionOrMeta && (args.inputChar === 'g' || args.inputChar === 'G'))
+    args.inputChar === "©" ||
+    (optionOrMeta && (args.inputChar === "g" || args.inputChar === "G"))
   ) {
-    return 'externalEditor'
+    return "externalEditor";
   }
 
-  return null
+  return null;
 }
 
 export function __getPromptInputSpecialKeyActionForTests(
   args: Parameters<typeof getPromptInputSpecialKeyAction>[0],
 ): PromptInputSpecialKeyAction {
-  return getPromptInputSpecialKeyAction(args)
+  return getPromptInputSpecialKeyAction(args);
 }

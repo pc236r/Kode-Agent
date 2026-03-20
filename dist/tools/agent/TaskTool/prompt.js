@@ -1,28 +1,32 @@
-import { getTools, getReadOnlyTools } from '@tools';
-import { FileWriteTool } from '@tools/FileWriteTool/FileWriteTool';
-import { GlobTool } from '@tools/GlobTool/GlobTool';
-import { FileReadTool } from '@tools/FileReadTool/FileReadTool';
-import { getActiveAgents } from '@utils/agent/loader';
+import { getTools, getReadOnlyTools } from "@tools";
+import { FileWriteTool } from "@tools/FileWriteTool/FileWriteTool";
+import { GlobTool } from "@tools/GlobTool/GlobTool";
+import { FileReadTool } from "@tools/FileReadTool/FileReadTool";
+import { getActiveAgents } from "@utils/agent/loader";
 const SUBAGENT_DISALLOWED_TOOL_NAMES = new Set([
-    'Task',
-    'TaskOutput',
-    'KillShell',
-    'EnterPlanMode',
-    'ExitPlanMode',
-    'AskUserQuestion',
+  "Task",
+  "TaskOutput",
+  "KillShell",
+  "EnterPlanMode",
+  "ExitPlanMode",
+  "AskUserQuestion",
 ]);
 export async function getTaskTools(safeMode) {
-    return (await (!safeMode ? getTools() : getReadOnlyTools())).filter(tool => !SUBAGENT_DISALLOWED_TOOL_NAMES.has(tool.name));
+  return (await (!safeMode ? getTools() : getReadOnlyTools())).filter(
+    (tool) => !SUBAGENT_DISALLOWED_TOOL_NAMES.has(tool.name),
+  );
 }
 export async function getPrompt(safeMode) {
-    const agents = await getActiveAgents();
-    const agentDescriptions = agents
-        .map(agent => {
-        const toolsStr = Array.isArray(agent.tools) ? agent.tools.join(', ') : '*';
-        return `- ${agent.agentType}: ${agent.whenToUse} (Tools: ${toolsStr})`;
+  const agents = await getActiveAgents();
+  const agentDescriptions = agents
+    .map((agent) => {
+      const toolsStr = Array.isArray(agent.tools)
+        ? agent.tools.join(", ")
+        : "*";
+      return `- ${agent.agentType}: ${agent.whenToUse} (Tools: ${toolsStr})`;
     })
-        .join('\n');
-    return `Launch a new agent to handle complex, multi-step tasks autonomously. 
+    .join("\n");
+  return `Launch a new agent to handle complex, multi-step tasks autonomously. 
 
 Available agent types and the tools they have access to:
 ${agentDescriptions}

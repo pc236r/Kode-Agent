@@ -1,117 +1,118 @@
-import { spawn, spawnSync } from 'child_process'
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'fs'
-import { tmpdir } from 'os'
-import { join } from 'path'
+import { spawn, spawnSync } from "child_process";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "fs";
+import { tmpdir } from "os";
+import { join } from "path";
 
 type EditorCommand = {
-  command: string
-  args: string[]
-  displayName: string
-  shell?: boolean
-}
+  command: string;
+  args: string[];
+  displayName: string;
+  shell?: boolean;
+};
 
-const isWindows = process.platform === 'win32'
+const isWindows = process.platform === "win32";
 
 function isCommandAvailable(command: string): boolean {
-  const checker = isWindows ? 'where' : 'which'
-  const result = spawnSync(checker, [command], { stdio: 'ignore' })
-  return result.status === 0
+  const checker = isWindows ? "where" : "which";
+  const result = spawnSync(checker, [command], { stdio: "ignore" });
+  return result.status === 0;
 }
 
 function resolveEditorCommand(): EditorCommand | null {
-  const envEditor = process.env.VISUAL || process.env.EDITOR
+  const envEditor = process.env.VISUAL || process.env.EDITOR;
   if (envEditor?.trim()) {
     return {
       command: envEditor.trim(),
       args: [],
       displayName: envEditor.trim(),
       shell: true,
-    }
+    };
   }
 
-  const candidates: EditorCommand[] = []
+  const candidates: EditorCommand[] = [];
 
-  if (isCommandAvailable('code')) {
+  if (isCommandAvailable("code")) {
     candidates.push({
-      command: 'code',
-      args: ['-w'],
-      displayName: 'code -w',
-    })
+      command: "code",
+      args: ["-w"],
+      displayName: "code -w",
+    });
   }
 
   if (!isWindows) {
-    if (isCommandAvailable('nano')) {
+    if (isCommandAvailable("nano")) {
       candidates.push({
-        command: 'nano',
+        command: "nano",
         args: [],
-        displayName: 'nano',
-      })
+        displayName: "nano",
+      });
     }
-    if (isCommandAvailable('vim')) {
+    if (isCommandAvailable("vim")) {
       candidates.push({
-        command: 'vim',
+        command: "vim",
         args: [],
-        displayName: 'vim',
-      })
+        displayName: "vim",
+      });
     }
-    if (isCommandAvailable('open')) {
+    if (isCommandAvailable("open")) {
       candidates.push({
-        command: 'open',
-        args: ['-W', '-t'],
-        displayName: 'open -W -t',
-      })
+        command: "open",
+        args: ["-W", "-t"],
+        displayName: "open -W -t",
+      });
     }
   } else {
     candidates.push({
-      command: 'notepad',
+      command: "notepad",
       args: [],
-      displayName: 'notepad',
-    })
+      displayName: "notepad",
+    });
   }
 
   return (
-    candidates.find(candidate => isCommandAvailable(candidate.command)) ?? null
-  )
+    candidates.find((candidate) => isCommandAvailable(candidate.command)) ??
+    null
+  );
 }
 
 function restoreStdinState(previouslyRaw: boolean): void {
-  if (!process.stdin.isTTY) return
-  process.stdin.resume()
+  if (!process.stdin.isTTY) return;
+  process.stdin.resume();
   if (previouslyRaw && process.stdin.setRawMode) {
-    process.stdin.setRawMode(true)
+    process.stdin.setRawMode(true);
   }
 }
 
 function normalizeNewlines(text: string): string {
-  return text.replace(/\r\n/g, '\n')
+  return text.replace(/\r\n/g, "\n");
 }
 
 export type ExternalEditorResult =
   | { text: string; editorLabel: string }
-  | { text: null; editorLabel?: string; error: Error }
+  | { text: null; editorLabel?: string; error: Error };
 
 export async function launchExternalEditor(
   initialText: string,
 ): Promise<ExternalEditorResult> {
-  const editorCommand = resolveEditorCommand()
+  const editorCommand = resolveEditorCommand();
   if (!editorCommand) {
     return {
       text: null,
       error: new Error(
-        'No editor found. Set $VISUAL or $EDITOR, or install code, nano, vim, or notepad.',
+        "No editor found. Set $VISUAL or $EDITOR, or install code, nano, vim, or notepad.",
       ),
-    }
+    };
   }
 
-  const dir = mkdtempSync(join(tmpdir(), 'kode-edit-'))
-  const filePath = join(dir, 'message.txt')
-  writeFileSync(filePath, initialText, 'utf-8')
+  const dir = mkdtempSync(join(tmpdir(), "kode-edit-"));
+  const filePath = join(dir, "message.txt");
+  writeFileSync(filePath, initialText, "utf-8");
 
-  const wasRaw = Boolean(process.stdin.isTTY && process.stdin.isRaw)
+  const wasRaw = Boolean(process.stdin.isTTY && process.stdin.isRaw);
   if (process.stdin.isTTY) {
-    process.stdin.pause()
+    process.stdin.pause();
     if (process.stdin.setRawMode) {
-      process.stdin.setRawMode(false)
+      process.stdin.setRawMode(false);
     }
   }
 
@@ -121,72 +122,72 @@ export async function launchExternalEditor(
         editorCommand.command,
         [...editorCommand.args, filePath],
         {
-          stdio: 'inherit',
+          stdio: "inherit",
           shell: editorCommand.shell ?? false,
         },
-      )
+      );
 
-      child.on('error', reject)
-      child.on('exit', (code, signal) => {
+      child.on("error", reject);
+      child.on("exit", (code, signal) => {
         if (code === 0 || code === null) {
-          resolve()
+          resolve();
         } else {
           reject(
             new Error(
-              `Editor exited with code ${code}${signal ? ` (signal ${signal})` : ''}`,
+              `Editor exited with code ${code}${signal ? ` (signal ${signal})` : ""}`,
             ),
-          )
+          );
         }
-      })
-    })
+      });
+    });
   } catch (error) {
-    restoreStdinState(wasRaw)
-    rmSync(dir, { recursive: true, force: true })
+    restoreStdinState(wasRaw);
+    rmSync(dir, { recursive: true, force: true });
     return {
       text: null,
       editorLabel: editorCommand.displayName,
       error: error as Error,
-    }
+    };
   }
 
-  restoreStdinState(wasRaw)
+  restoreStdinState(wasRaw);
 
   try {
-    const edited = normalizeNewlines(readFileSync(filePath, 'utf-8'))
-    rmSync(dir, { recursive: true, force: true })
-    return { text: edited, editorLabel: editorCommand.displayName }
+    const edited = normalizeNewlines(readFileSync(filePath, "utf-8"));
+    rmSync(dir, { recursive: true, force: true });
+    return { text: edited, editorLabel: editorCommand.displayName };
   } catch (error) {
-    rmSync(dir, { recursive: true, force: true })
+    rmSync(dir, { recursive: true, force: true });
     return {
       text: null,
       editorLabel: editorCommand.displayName,
       error: error as Error,
-    }
+    };
   }
 }
 
 export type ExternalEditorFileResult =
   | { ok: true; editorLabel: string }
-  | { ok: false; editorLabel?: string; error: Error }
+  | { ok: false; editorLabel?: string; error: Error };
 
 export async function launchExternalEditorForFilePath(
   filePath: string,
 ): Promise<ExternalEditorFileResult> {
-  const editorCommand = resolveEditorCommand()
+  const editorCommand = resolveEditorCommand();
   if (!editorCommand) {
     return {
       ok: false,
       error: new Error(
-        'No editor found. Set $VISUAL or $EDITOR, or install code, nano, vim, or notepad.',
+        "No editor found. Set $VISUAL or $EDITOR, or install code, nano, vim, or notepad.",
       ),
-    }
+    };
   }
 
-  const wasRaw = Boolean(process.stdin.isTTY && (process.stdin as any).isRaw)
+  const wasRaw = Boolean(process.stdin.isTTY && (process.stdin as any).isRaw);
   if (process.stdin.isTTY) {
-    process.stdin.pause()
+    process.stdin.pause();
     if (process.stdin.setRawMode) {
-      process.stdin.setRawMode(false)
+      process.stdin.setRawMode(false);
     }
   }
 
@@ -196,33 +197,33 @@ export async function launchExternalEditorForFilePath(
         editorCommand.command,
         [...editorCommand.args, filePath],
         {
-          stdio: 'inherit',
+          stdio: "inherit",
           shell: editorCommand.shell ?? false,
         },
-      )
+      );
 
-      child.on('error', reject)
-      child.on('exit', (code, signal) => {
+      child.on("error", reject);
+      child.on("exit", (code, signal) => {
         if (code === 0 || code === null) {
-          resolve()
+          resolve();
         } else {
           reject(
             new Error(
-              `Editor exited with code ${code}${signal ? ` (signal ${signal})` : ''}`,
+              `Editor exited with code ${code}${signal ? ` (signal ${signal})` : ""}`,
             ),
-          )
+          );
         }
-      })
-    })
+      });
+    });
   } catch (error) {
-    restoreStdinState(wasRaw)
+    restoreStdinState(wasRaw);
     return {
       ok: false,
       editorLabel: editorCommand.displayName,
       error: error as Error,
-    }
+    };
   }
 
-  restoreStdinState(wasRaw)
-  return { ok: true, editorLabel: editorCommand.displayName }
+  restoreStdinState(wasRaw);
+  return { ok: true, editorLabel: editorCommand.displayName };
 }

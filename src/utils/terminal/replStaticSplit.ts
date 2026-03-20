@@ -1,9 +1,9 @@
-import type { NormalizedMessage } from '@utils/messages'
-import { getToolUseID } from '@utils/messages'
-import type { ProgressMessage } from '@query'
+import type { NormalizedMessage } from "@utils/messages";
+import { getToolUseID } from "@utils/messages";
+import type { ProgressMessage } from "@query";
 
 function intersects<A>(a: Set<A>, b: Set<A>): boolean {
-  return a.size > 0 && b.size > 0 && [...a].some(_ => b.has(_))
+  return a.size > 0 && b.size > 0 && [...a].some((_) => b.has(_));
 }
 
 export function shouldRenderReplMessageStatically(
@@ -12,30 +12,30 @@ export function shouldRenderReplMessageStatically(
   unresolvedToolUseIDs: Set<string>,
 ): boolean {
   switch (message.type) {
-    case 'user':
-    case 'assistant': {
-      const toolUseID = getToolUseID(message)
+    case "user":
+    case "assistant": {
+      const toolUseID = getToolUseID(message);
       if (!toolUseID) {
-        return true
+        return true;
       }
       if (unresolvedToolUseIDs.has(toolUseID)) {
-        return false
+        return false;
       }
 
       const correspondingProgressMessage = messages.find(
-        _ => _.type === 'progress' && _.toolUseID === toolUseID,
-      ) as ProgressMessage | null
+        (_) => _.type === "progress" && _.toolUseID === toolUseID,
+      ) as ProgressMessage | null;
       if (!correspondingProgressMessage) {
-        return true
+        return true;
       }
 
       return !intersects(
         unresolvedToolUseIDs,
         correspondingProgressMessage.siblingToolUseIDs,
-      )
+      );
     }
-    case 'progress':
-      return !intersects(unresolvedToolUseIDs, message.siblingToolUseIDs)
+    case "progress":
+      return !intersects(unresolvedToolUseIDs, message.siblingToolUseIDs);
   }
 }
 
@@ -45,7 +45,7 @@ export function getReplStaticPrefixLength(
   unresolvedToolUseIDs: Set<string>,
 ): number {
   for (let i = 0; i < orderedMessages.length; i++) {
-    const message = orderedMessages[i]!
+    const message = orderedMessages[i]!;
     if (
       !shouldRenderReplMessageStatically(
         message,
@@ -53,8 +53,8 @@ export function getReplStaticPrefixLength(
         unresolvedToolUseIDs,
       )
     ) {
-      return i
+      return i;
     }
   }
-  return orderedMessages.length
+  return orderedMessages.length;
 }

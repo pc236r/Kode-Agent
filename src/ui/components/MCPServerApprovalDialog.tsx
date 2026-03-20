@@ -1,60 +1,60 @@
-import React from 'react'
-import { Box, Text, useInput } from 'ink'
-import { getTheme } from '@utils/theme'
-import { Select } from './custom-select/select'
+import React from "react";
+import { Box, Text, useInput } from "ink";
+import { getTheme } from "@utils/theme";
+import { Select } from "./custom-select/select";
 import {
   saveCurrentProjectConfig,
   getCurrentProjectConfig,
-} from '@utils/config'
-import { MCPServerDialogCopy } from './MCPServerDialogCopy'
-import { useExitOnCtrlCD } from '@hooks/useExitOnCtrlCD'
+} from "@utils/config";
+import { MCPServerDialogCopy } from "./MCPServerDialogCopy";
+import { useExitOnCtrlCD } from "@hooks/useExitOnCtrlCD";
 
 type Props = {
-  serverName: string
-  onDone(): void
-}
+  serverName: string;
+  onDone(): void;
+};
 
 export function MCPServerApprovalDialog({
   serverName,
   onDone,
 }: Props): React.ReactNode {
-  const theme = getTheme()
-  function onChange(value: 'yes' | 'no') {
-    const config = getCurrentProjectConfig()
+  const theme = getTheme();
+  function onChange(value: "yes" | "no") {
+    const config = getCurrentProjectConfig();
     switch (value) {
-      case 'yes': {
+      case "yes": {
         if (!config.approvedMcprcServers) {
-          config.approvedMcprcServers = []
+          config.approvedMcprcServers = [];
         }
         if (!config.approvedMcprcServers.includes(serverName)) {
-          config.approvedMcprcServers.push(serverName)
+          config.approvedMcprcServers.push(serverName);
         }
-        saveCurrentProjectConfig(config)
-        onDone()
-        break
+        saveCurrentProjectConfig(config);
+        onDone();
+        break;
       }
-      case 'no': {
+      case "no": {
         if (!config.rejectedMcprcServers) {
-          config.rejectedMcprcServers = []
+          config.rejectedMcprcServers = [];
         }
         if (!config.rejectedMcprcServers.includes(serverName)) {
-          config.rejectedMcprcServers.push(serverName)
+          config.rejectedMcprcServers.push(serverName);
         }
-        saveCurrentProjectConfig(config)
-        onDone()
-        break
+        saveCurrentProjectConfig(config);
+        onDone();
+        break;
       }
     }
   }
 
-  const exitState = useExitOnCtrlCD(() => process.exit(0))
+  const exitState = useExitOnCtrlCD(() => process.exit(0));
 
   useInput((_input, key) => {
     if (key.escape) {
-      onDone()
-      return
+      onDone();
+      return;
     }
-  })
+  });
 
   return (
     <>
@@ -80,10 +80,10 @@ export function MCPServerApprovalDialog({
 
         <Select
           options={[
-            { label: 'Yes, approve this server', value: 'yes' },
-            { label: 'No, reject this server', value: 'no' },
+            { label: "Yes, approve this server", value: "yes" },
+            { label: "No, reject this server", value: "no" },
           ]}
-          onChange={value => onChange(value as 'yes' | 'no')}
+          onChange={(value) => onChange(value as "yes" | "no")}
         />
       </Box>
       <Box marginLeft={3}>
@@ -96,5 +96,5 @@ export function MCPServerApprovalDialog({
         </Text>
       </Box>
     </>
-  )
+  );
 }

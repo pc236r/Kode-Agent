@@ -1,8 +1,8 @@
-export const ENTER_TOOL_NAME = 'EnterPlanMode'
-export const EXIT_TOOL_NAME = 'ExitPlanMode'
+export const ENTER_TOOL_NAME = "EnterPlanMode";
+export const EXIT_TOOL_NAME = "ExitPlanMode";
 
 export const ENTER_DESCRIPTION =
-  'Requests permission to enter plan mode for complex tasks requiring exploration and design'
+  "Requests permission to enter plan mode for complex tasks requiring exploration and design";
 
 export const ENTER_PROMPT = `Use this tool proactively when you're about to start a non-trivial implementation task. Getting user sign-off on your approach before writing code prevents wasted effort and ensures alignment. This tool transitions you into plan mode where you can explore the codebase and design an implementation approach for user approval.
 
@@ -88,10 +88,10 @@ User: "What files handle routing?"
 
 - This tool REQUIRES user approval - they must consent to entering plan mode
 - If unsure whether to use it, err on the side of planning - it's better to get alignment upfront than to redo work
-- Users appreciate being consulted before significant changes are made to their codebase`
+- Users appreciate being consulted before significant changes are made to their codebase`;
 
 export const EXIT_DESCRIPTION =
-  'Prompts the user to exit plan mode and start coding'
+  "Prompts the user to exit plan mode and start coding";
 
 export const EXIT_PROMPT = `Use this tool when you are in plan mode and have finished writing your plan to the plan file and are ready for user approval.
 
@@ -116,4 +116,4 @@ Before using this tool, ensure your plan is clear and unambiguous. If there are 
 
 1. Initial task: "Search for and understand the implementation of vim mode in the codebase" - Do not use the exit plan mode tool because you are not planning the implementation steps of the task.
 2. Initial task: "Help me implement yank mode for vim" - Use the exit plan mode tool after you have finished planning the implementation steps of the task.
-3. Initial task: "Add a new feature to handle user authentication" - If unsure about auth method (OAuth, JWT, etc.), use AskUserQuestion first, then use exit plan mode tool after clarifying the approach.`
+3. Initial task: "Add a new feature to handle user authentication" - If unsure about auth method (OAuth, JWT, etc.), use AskUserQuestion first, then use exit plan mode tool after clarifying the approach.`;

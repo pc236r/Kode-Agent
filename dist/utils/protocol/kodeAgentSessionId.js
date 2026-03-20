@@ -1,12 +1,12 @@
-import { randomUUID } from 'crypto';
+import { randomUUID } from "crypto";
 let currentSessionId = randomUUID();
 export function setKodeAgentSessionId(nextSessionId) {
-    currentSessionId = nextSessionId;
+  currentSessionId = nextSessionId;
 }
 export function resetKodeAgentSessionIdForTests() {
-    currentSessionId = randomUUID();
+  currentSessionId = randomUUID();
 }
 export function getKodeAgentSessionId() {
-    return currentSessionId;
+  return currentSessionId;
 }
 //# sourceMappingURL=kodeAgentSessionId.js.map

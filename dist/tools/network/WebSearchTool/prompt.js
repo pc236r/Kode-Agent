@@ -1,10 +1,10 @@
-export const TOOL_NAME_FOR_PROMPT = 'WebSearch';
+export const TOOL_NAME_FOR_PROMPT = "WebSearch";
 function todayISO() {
-    const now = new Date();
-    const year = now.getFullYear();
-    const month = String(now.getMonth() + 1).padStart(2, '0');
-    const day = String(now.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
 }
 export const PROMPT = `
 - Allows the assistant to search the web and use the results to inform responses

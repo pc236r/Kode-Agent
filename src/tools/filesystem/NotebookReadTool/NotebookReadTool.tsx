@@ -1,14 +1,14 @@
 import type {
   ImageBlockParam,
   TextBlockParam,
-} from '@anthropic-ai/sdk/resources/index.mjs'
+} from "@anthropic-ai/sdk/resources/index.mjs";
 
-import { Text } from 'ink'
-import { extname, isAbsolute, relative, resolve } from 'path'
-import * as React from 'react'
-import { z } from 'zod'
-import { FallbackToolUseRejectedMessage } from '@components/FallbackToolUseRejectedMessage'
-import { Tool } from '@tool'
+import { Text } from "ink";
+import { extname, isAbsolute, relative, resolve } from "path";
+import * as React from "react";
+import { z } from "zod";
+import { FallbackToolUseRejectedMessage } from "@components/FallbackToolUseRejectedMessage";
+import { Tool } from "@tool";
 import {
   NotebookCellSource,
   NotebookContent,
@@ -17,181 +17,181 @@ import {
   NotebookCellSourceOutput,
   NotebookCellOutput,
   NotebookCellType,
-} from '@kode-types/notebook'
-import { formatOutput } from '@tools/BashTool/utils'
-import { getCwd } from '@utils/state'
-import { findSimilarFile } from '@utils/fs/file'
-import { readFileBun, fileExistsBun } from '@utils/bun/file'
-import { DESCRIPTION, PROMPT } from './prompt'
-import { hasReadPermission } from '@utils/permissions/filesystem'
+} from "@kode-types/notebook";
+import { formatOutput } from "@tools/BashTool/utils";
+import { getCwd } from "@utils/state";
+import { findSimilarFile } from "@utils/fs/file";
+import { readFileBun, fileExistsBun } from "@utils/bun/file";
+import { DESCRIPTION, PROMPT } from "./prompt";
+import { hasReadPermission } from "@utils/permissions/filesystem";
 
 const inputSchema = z.strictObject({
   notebook_path: z
     .string()
     .describe(
-      'The absolute path to the Jupyter notebook file to read (must be absolute, not relative)',
+      "The absolute path to the Jupyter notebook file to read (must be absolute, not relative)",
     ),
-})
+});
 
-type In = typeof inputSchema
-type Out = NotebookCellSource[]
+type In = typeof inputSchema;
+type Out = NotebookCellSource[];
 
 export const NotebookReadTool = {
-  name: 'ReadNotebook',
+  name: "ReadNotebook",
   async description() {
-    return DESCRIPTION
+    return DESCRIPTION;
   },
   async prompt() {
-    return PROMPT
+    return PROMPT;
   },
   isReadOnly() {
-    return true
+    return true;
   },
   isConcurrencySafe() {
-    return true
+    return true;
   },
   inputSchema,
   userFacingName() {
-    return 'Read Notebook'
+    return "Read Notebook";
   },
   async isEnabled() {
-    return true
+    return true;
   },
   needsPermissions({ notebook_path }) {
-    return !hasReadPermission(notebook_path)
+    return !hasReadPermission(notebook_path);
   },
   async validateInput({ notebook_path }) {
     const fullFilePath = isAbsolute(notebook_path)
       ? notebook_path
-      : resolve(getCwd(), notebook_path)
+      : resolve(getCwd(), notebook_path);
 
     if (!fileExistsBun(fullFilePath)) {
-      const similarFilename = findSimilarFile(fullFilePath)
-      let message = 'File does not exist.'
+      const similarFilename = findSimilarFile(fullFilePath);
+      let message = "File does not exist.";
 
       if (similarFilename) {
-        message += ` Did you mean ${similarFilename}?`
+        message += ` Did you mean ${similarFilename}?`;
       }
 
       return {
         result: false,
         message,
-      }
+      };
     }
 
-    if (extname(fullFilePath) !== '.ipynb') {
+    if (extname(fullFilePath) !== ".ipynb") {
       return {
         result: false,
-        message: 'File must be a Jupyter notebook (.ipynb file).',
-      }
+        message: "File must be a Jupyter notebook (.ipynb file).",
+      };
     }
 
-    return { result: true }
+    return { result: true };
   },
   renderToolUseMessage(input, { verbose }) {
-    return `notebook_path: ${verbose ? input.notebook_path : relative(getCwd(), input.notebook_path)}`
+    return `notebook_path: ${verbose ? input.notebook_path : relative(getCwd(), input.notebook_path)}`;
   },
   renderToolUseRejectedMessage() {
-    return <FallbackToolUseRejectedMessage />
+    return <FallbackToolUseRejectedMessage />;
   },
 
   renderToolResultMessage(content) {
     if (!content) {
-      return <Text>No cells found in notebook</Text>
+      return <Text>No cells found in notebook</Text>;
     }
     if (content.length < 1 || !content[0]) {
-      return <Text>No cells found in notebook</Text>
+      return <Text>No cells found in notebook</Text>;
     }
-    return <Text>Read {content.length} cells</Text>
+    return <Text>Read {content.length} cells</Text>;
   },
   async *call({ notebook_path }) {
     const fullPath = isAbsolute(notebook_path)
       ? notebook_path
-      : resolve(getCwd(), notebook_path)
+      : resolve(getCwd(), notebook_path);
 
-    const content = await readFileBun(fullPath)
+    const content = await readFileBun(fullPath);
     if (!content) {
-      throw new Error('Could not read notebook file')
+      throw new Error("Could not read notebook file");
     }
-    const notebook = JSON.parse(content) as NotebookContent
-    const language = notebook.metadata.language_info?.name ?? 'python'
+    const notebook = JSON.parse(content) as NotebookContent;
+    const language = notebook.metadata.language_info?.name ?? "python";
     const cells = notebook.cells.map((cell, index) =>
       processCell(cell, index, language),
-    )
+    );
 
     yield {
-      type: 'result',
+      type: "result",
       resultForAssistant: this.renderResultForAssistant(cells),
       data: cells,
-    }
+    };
   },
   renderResultForAssistant(data: NotebookCellSource[]) {
     return data
       .map((cell, index) => {
-        let content = `Cell ${index + 1} (${cell.cellType}):\n${cell.source}`
+        let content = `Cell ${index + 1} (${cell.cellType}):\n${cell.source}`;
         if (cell.outputs && cell.outputs.length > 0) {
           const outputText = cell.outputs
-            .map(output => output.text)
+            .map((output) => output.text)
             .filter(Boolean)
-            .join('\n')
+            .join("\n");
           if (outputText) {
-            content += `\nOutput:\n${outputText}`
+            content += `\nOutput:\n${outputText}`;
           }
         }
-        return content
+        return content;
       })
-      .join('\n\n')
+      .join("\n\n");
   },
-} satisfies Tool<In, Out>
+} satisfies Tool<In, Out>;
 
 function processOutputText(text: string | string[] | undefined): string {
-  if (!text) return ''
-  const rawText = Array.isArray(text) ? text.join('') : text
-  const { truncatedContent } = formatOutput(rawText)
-  return truncatedContent
+  if (!text) return "";
+  const rawText = Array.isArray(text) ? text.join("") : text;
+  const { truncatedContent } = formatOutput(rawText);
+  return truncatedContent;
 }
 
 function extractImage(
   data: Record<string, unknown>,
 ): NotebookOutputImage | undefined {
-  if (typeof data['image/png'] === 'string') {
+  if (typeof data["image/png"] === "string") {
     return {
-      image_data: data['image/png'] as string,
-      media_type: 'image/png',
-    }
+      image_data: data["image/png"] as string,
+      media_type: "image/png",
+    };
   }
-  if (typeof data['image/jpeg'] === 'string') {
+  if (typeof data["image/jpeg"] === "string") {
     return {
-      image_data: data['image/jpeg'] as string,
-      media_type: 'image/jpeg',
-    }
+      image_data: data["image/jpeg"] as string,
+      media_type: "image/jpeg",
+    };
   }
-  return undefined
+  return undefined;
 }
 
 function processOutput(output: NotebookCellOutput) {
   switch (output.output_type) {
-    case 'stream':
+    case "stream":
       return {
         output_type: output.output_type,
         text: processOutputText(output.text),
-      }
-    case 'execute_result':
-    case 'display_data':
+      };
+    case "execute_result":
+    case "display_data":
       return {
         output_type: output.output_type,
         text: processOutputText(
-          output.data?.['text/plain'] as string | string[] | undefined,
+          output.data?.["text/plain"] as string | string[] | undefined,
         ),
         image: output.data && extractImage(output.data),
-      }
-    case 'error':
+      };
+    case "error":
       return {
         output_type: output.output_type,
         text: processOutputText(
-          `${output.ename}: ${output.evalue}\n${output.traceback.join('\n')}`,
+          `${output.ename}: ${output.evalue}\n${output.traceback.join("\n")}`,
         ),
-      }
+      };
   }
 }
 
@@ -203,62 +203,62 @@ function processCell(
   const cellData: NotebookCellSource = {
     cell: index,
     cellType: cell.cell_type,
-    source: Array.isArray(cell.source) ? cell.source.join('') : cell.source,
+    source: Array.isArray(cell.source) ? cell.source.join("") : cell.source,
     language,
     execution_count: cell.execution_count,
-  }
+  };
 
   if (cell.outputs?.length) {
-    cellData.outputs = cell.outputs.map(processOutput)
+    cellData.outputs = cell.outputs.map(processOutput);
   }
 
-  return cellData
+  return cellData;
 }
 
 function cellContentToToolResult(cell: NotebookCellSource): TextBlockParam {
-  const metadata = []
-  if (cell.cellType !== 'code') {
-    metadata.push(`<cell_type>${cell.cellType}</cell_type>`)
+  const metadata = [];
+  if (cell.cellType !== "code") {
+    metadata.push(`<cell_type>${cell.cellType}</cell_type>`);
   }
-  if (cell.language !== 'python' && cell.cellType === 'code') {
-    metadata.push(`<language>${cell.language}</language>`)
+  if (cell.language !== "python" && cell.cellType === "code") {
+    metadata.push(`<language>${cell.language}</language>`);
   }
-  const cellContent = `<cell ${cell.cell}>${metadata.join('')}${cell.source}</cell ${cell.cell}>`
+  const cellContent = `<cell ${cell.cell}>${metadata.join("")}${cell.source}</cell ${cell.cell}>`;
   return {
     text: cellContent,
-    type: 'text',
-  }
+    type: "text",
+  };
 }
 
 function cellOutputToToolResult(output: NotebookCellSourceOutput) {
-  const outputs: (TextBlockParam | ImageBlockParam)[] = []
+  const outputs: (TextBlockParam | ImageBlockParam)[] = [];
   if (output.text) {
     outputs.push({
       text: `\n${output.text}`,
-      type: 'text',
-    })
+      type: "text",
+    });
   }
   if (output.image) {
     outputs.push({
-      type: 'image',
+      type: "image",
       source: {
         data: output.image.image_data,
         media_type: output.image.media_type,
-        type: 'base64',
+        type: "base64",
       },
-    })
+    });
   }
-  return outputs
+  return outputs;
 }
 
 function getToolResultFromCell(cell: NotebookCellSource) {
-  const contentResult = cellContentToToolResult(cell)
-  const outputResults = cell.outputs?.flatMap(cellOutputToToolResult)
-  return [contentResult, ...(outputResults ?? [])]
+  const contentResult = cellContentToToolResult(cell);
+  const outputResults = cell.outputs?.flatMap(cellOutputToToolResult);
+  return [contentResult, ...(outputResults ?? [])];
 }
 
 export function isNotebookCellType(
   value: string | null,
 ): value is NotebookCellType {
-  return value === 'code' || value === 'markdown'
+  return value === "code" || value === "markdown";
 }

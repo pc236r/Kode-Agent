@@ -1,7 +1,7 @@
-export type { WrappedClient } from './client'
-export { getClients, getClientsForCliMcpConfig } from './client'
+export type { WrappedClient } from "./client";
+export { getClients, getClientsForCliMcpConfig } from "./client";
 
-export type { ScopedMcpServerConfig } from './discovery'
+export type { ScopedMcpServerConfig } from "./discovery";
 export {
   addMcpServer,
   ensureConfigScope,
@@ -11,14 +11,14 @@ export {
   listPluginMCPServers,
   parseEnvVars,
   removeMcpServer,
-} from './discovery'
+} from "./discovery";
 
-export { getMCPCommands, getMCPTools, runCommand } from './tools-integration'
+export { getMCPCommands, getMCPTools, runCommand } from "./tools-integration";
 
-export type { McpCliTransport } from './cli-utils'
+export type { McpCliTransport } from "./cli-utils";
 export {
   looksLikeMcpUrl,
   normalizeMcpScopeForCli,
   normalizeMcpTransport,
   parseMcpHeaders,
-} from './cli-utils'
+} from "./cli-utils";

@@ -1,6 +1,6 @@
-import { homedir } from 'os'
-import type { GlobalConfig, ProjectConfig, ProviderType } from './schema'
-import type { ThemeNames } from '@utils/theme'
+import { homedir } from "os";
+import type { GlobalConfig, ProjectConfig, ProviderType } from "./schema";
+import type { ThemeNames } from "@utils/theme";
 
 export const DEFAULT_PROJECT_CONFIG: ProjectConfig = {
   allowedTools: [],
@@ -15,23 +15,23 @@ export const DEFAULT_PROJECT_CONFIG: ProjectConfig = {
   approvedMcprcServers: [],
   rejectedMcprcServers: [],
   hasTrustDialogAccepted: false,
-}
+};
 
 export function defaultConfigForProject(projectPath: string): ProjectConfig {
-  const config = { ...DEFAULT_PROJECT_CONFIG }
+  const config = { ...DEFAULT_PROJECT_CONFIG };
   if (projectPath === homedir()) {
-    config.dontCrawlDirectory = true
+    config.dontCrawlDirectory = true;
   }
-  return config
+  return config;
 }
 
 export const DEFAULT_GLOBAL_CONFIG: GlobalConfig = {
   numStartups: 0,
-  autoUpdaterStatus: 'not_configured',
-  theme: 'dark' as ThemeNames,
-  preferredNotifChannel: 'iterm2',
+  autoUpdaterStatus: "not_configured",
+  theme: "dark" as ThemeNames,
+  preferredNotifChannel: "iterm2",
   verbose: false,
-  primaryProvider: 'anthropic' as ProviderType,
+  primaryProvider: "anthropic" as ProviderType,
   customApiKeyResponses: {
     approved: [],
     rejected: [],
@@ -40,10 +40,10 @@ export const DEFAULT_GLOBAL_CONFIG: GlobalConfig = {
 
   modelProfiles: [],
   modelPointers: {
-    main: '',
-    task: '',
-    compact: '',
-    quick: '',
+    main: "",
+    task: "",
+    compact: "",
+    quick: "",
   },
   lastDismissedUpdateVersion: undefined,
-}
+};

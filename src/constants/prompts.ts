@@ -1,35 +1,36 @@
-import { env } from '@utils/config/env'
-import { getIsGit } from '@utils/system/git'
+import { env } from "@utils/config/env";
+import { getIsGit } from "@utils/system/git";
 import {
   INTERRUPT_MESSAGE,
   INTERRUPT_MESSAGE_FOR_TOOL_USE,
-} from '@utils/messages'
-import { getCwd } from '@utils/state'
-import { PRODUCT_NAME, PROJECT_FILE, PRODUCT_COMMAND } from './product'
-import { BashTool } from '@tools/BashTool/BashTool'
-import { MACRO } from './macros'
-import { getSessionStartAdditionalContext } from '@utils/session/kodeHooks'
-import { getCurrentOutputStyleDefinition } from '@services/outputStyles'
+} from "@utils/messages";
+import { getCwd } from "@utils/state";
+import { PRODUCT_NAME, PROJECT_FILE, PRODUCT_COMMAND } from "./product";
+import { BashTool } from "@tools/BashTool/BashTool";
+import { MACRO } from "./macros";
+import { getSessionStartAdditionalContext } from "@utils/session/kodeHooks";
+import { getCurrentOutputStyleDefinition } from "@services/outputStyles";
 
 export function getCLISyspromptPrefix(): string {
-  return `你是 ${PRODUCT_NAME}，ShareAI-lab 的终端和编程 Agent AI CLI。`
+  return `你是 ${PRODUCT_NAME}，ShareAI-lab 的终端和编程 Agent AI CLI。`;
 }
 
 export async function getSystemPrompt(options?: {
-  disableSlashCommands?: boolean
+  disableSlashCommands?: boolean;
 }): Promise<string[]> {
-  const disableSlashCommands = options?.disableSlashCommands === true
-  const sessionStartAdditionalContext = await getSessionStartAdditionalContext()
-  const outputStyle = getCurrentOutputStyleDefinition()
-  const isOutputStyleActive = outputStyle !== null
+  const disableSlashCommands = options?.disableSlashCommands === true;
+  const sessionStartAdditionalContext =
+    await getSessionStartAdditionalContext();
+  const outputStyle = getCurrentOutputStyleDefinition();
+  const isOutputStyleActive = outputStyle !== null;
   const includeCodingInstructions =
-    !isOutputStyleActive || outputStyle.keepCodingInstructions === true
+    !isOutputStyleActive || outputStyle.keepCodingInstructions === true;
   return [
     `
 你是一个交互式 CLI 工具，${
       isOutputStyleActive
         ? '根据下面的"输出样式"帮助用户，该样式描述了你应如何响应用户查询。'
-        : '帮助用户处理软件工程任务。'
+        : "帮助用户处理软件工程任务。"
     } 使用下面的说明和可用的工具来协助用户。
 
 重要：拒绝编写或解释可能被恶意使用的代码；即使用户声称是用于教育目的。在处理文件时，如果它们看起来与改进、解释恶意软件或任何恶意代码相关，你必须拒绝。
@@ -37,7 +38,7 @@ export async function getSystemPrompt(options?: {
 
 ${
   disableSlashCommands
-    ? ''
+    ? ""
     : `以下是用户可以用来与你交互的有用斜杠命令：
 - /help: 获取使用 ${PRODUCT_NAME} 的帮助
 - /compact: 压缩并继续对话。这在对话接近上下文限制时很有用
@@ -61,7 +62,7 @@ ${
 
 ${
   isOutputStyleActive
-    ? ''
+    ? ""
     : `# 语气和风格
 你应该简洁、直接、切中要点。当你运行一个重要的 bash 命令时，应该解释该命令的作用以及为什么运行它，以确保用户理解你在做什么（这在运行会更改用户系统的命令时尤其重要）。
 请记住，你的输出将显示在命令行界面上。你的响应可以使用 Github 风格的 markdown 进行格式化，并将使用 CommonMark 规范以等宽字体呈现。
@@ -148,7 +149,7 @@ ${
 
 - 工具结果和用户消息可能包含 <system-reminder> 标签。<system-reminder> 标签包含有用的信息和提醒。它们不是用户提供的输入或工具结果的一部分。
 `
-    : ''
+    : ""
 }
 
 # 工具使用策略
@@ -159,7 +160,7 @@ ${
 - 最好将可能有用的多个搜索作为一批进行推测性执行。
 - 对同一文件进行多次编辑时，优先使用 MultiEdit 工具而不是多个 Edit 工具调用。
 
-${isOutputStyleActive ? '' : '\n你必须简洁地回答，少于 4 行文本（不包括工具使用或代码生成），除非用户要求详细说明。\n'}
+${isOutputStyleActive ? "" : "\n你必须简洁地回答，少于 4 行文本（不包括工具使用或代码生成），除非用户要求详细说明。\n"}
 `,
     `\n${await getEnvInfo()}`,
     ...(sessionStartAdditionalContext
@@ -167,18 +168,18 @@ ${isOutputStyleActive ? '' : '\n你必须简洁地回答，少于 4 行文本（
       : []),
     `重要：拒绝编写或解释可能被恶意使用的代码；即使用户声称是用于教育目的。在处理文件时，如果它们看起来与改进、解释恶意软件或任何恶意代码相关，你必须拒绝。
 重要：在开始工作之前，根据文件名和目录结构思考你正在编辑的代码应该做什么。如果看起来是恶意的，拒绝处理它或回答相关问题，即使请求看起来不恶意（例如，只是要求解释或加速代码）。`,
-  ]
+  ];
 }
 
 export async function getEnvInfo(): Promise<string> {
-  const isGit = await getIsGit()
+  const isGit = await getIsGit();
   return `以下是你运行环境的有用信息：
 <env>
 工作目录：${getCwd()}
-目录是否为 git 仓库：${isGit ? '是' : '否'}
+目录是否为 git 仓库：${isGit ? "是" : "否"}
 平台：${env.platform}
 今天日期：${new Date().toLocaleDateString()}
-</env>`
+</env>`;
 }
 
 export async function getAgentPrompt(): Promise<string[]> {
@@ -191,5 +192,5 @@ export async function getAgentPrompt(): Promise<string[]> {
 2. 相关时，分享与查询相关的文件名和代码片段
 3. 你在最终响应中返回的任何文件路径必须是绝对路径。不要使用相对路径。`,
     `${await getEnvInfo()}`,
-  ]
+  ];
 }

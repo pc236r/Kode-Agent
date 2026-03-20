@@ -1,197 +1,198 @@
-import figures from 'figures'
-import { memoize } from 'lodash-es'
-import { existsSync, readdirSync, readFileSync, statSync } from 'fs'
-import { basename, dirname, join, resolve } from 'path'
-import { homedir } from 'os'
-import matter from 'gray-matter'
-import yaml from 'js-yaml'
-import { getSessionPlugins } from '@utils/session/sessionPlugins'
+import figures from "figures";
+import { memoize } from "lodash-es";
+import { existsSync, readdirSync, readFileSync, statSync } from "fs";
+import { basename, dirname, join, resolve } from "path";
+import { homedir } from "os";
+import matter from "gray-matter";
+import yaml from "js-yaml";
+import { getSessionPlugins } from "@utils/session/sessionPlugins";
 import {
   readLocalSettings,
   updateLocalSettings,
-} from '@utils/config/localSettings'
-import { getCwd } from '@utils/state'
-import { isSettingSourceEnabled } from '@utils/config/settingSources'
+} from "@utils/config/localSettings";
+import { getCwd } from "@utils/state";
+import { isSettingSourceEnabled } from "@utils/config/settingSources";
 
 export type OutputStyleSource =
-  | 'built-in'
-  | 'plugin'
-  | 'userSettings'
-  | 'projectSettings'
-  | 'policySettings'
+  | "built-in"
+  | "plugin"
+  | "userSettings"
+  | "projectSettings"
+  | "policySettings";
 
 export type OutputStyleDefinition = {
-  name: string
-  description: string
-  prompt: string
-  source: OutputStyleSource
-  keepCodingInstructions?: boolean
-}
+  name: string;
+  description: string;
+  prompt: string;
+  source: OutputStyleSource;
+  keepCodingInstructions?: boolean;
+};
 
-export type OutputStyleMap = Record<string, OutputStyleDefinition | null>
+export type OutputStyleMap = Record<string, OutputStyleDefinition | null>;
 
-export const DEFAULT_OUTPUT_STYLE = 'default'
+export const DEFAULT_OUTPUT_STYLE = "default";
 
 function normalizeString(value: unknown): string | null {
-  if (typeof value !== 'string') return null
-  const trimmed = value.trim()
-  return trimmed ? trimmed : null
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  return trimmed ? trimmed : null;
 }
 
 function getClaudePolicyBaseDir(): string {
   switch (process.platform) {
-    case 'darwin':
-      return '/Library/Application Support/ClaudeCode'
-    case 'win32':
-      return existsSync('C:\\Program Files\\ClaudeCode')
-        ? 'C:\\Program Files\\ClaudeCode'
-        : 'C:\\ProgramData\\ClaudeCode'
+    case "darwin":
+      return "/Library/Application Support/ClaudeCode";
+    case "win32":
+      return existsSync("C:\\Program Files\\ClaudeCode")
+        ? "C:\\Program Files\\ClaudeCode"
+        : "C:\\ProgramData\\ClaudeCode";
     default:
-      return '/etc/claude-code'
+      return "/etc/claude-code";
   }
 }
 
 function getUserConfigBaseDirs(): { claude: string; kode: string }[] {
-  const out: { claude: string; kode: string }[] = []
+  const out: { claude: string; kode: string }[] = [];
 
   const hasAnyOverride =
-    typeof process.env.CLAUDE_CONFIG_DIR === 'string' ||
-    typeof process.env.KODE_CONFIG_DIR === 'string'
+    typeof process.env.CLAUDE_CONFIG_DIR === "string" ||
+    typeof process.env.KODE_CONFIG_DIR === "string";
 
-  const claudeBase = normalizeString(process.env.CLAUDE_CONFIG_DIR)
-  const kodeBase = normalizeString(process.env.KODE_CONFIG_DIR)
+  const claudeBase = normalizeString(process.env.CLAUDE_CONFIG_DIR);
+  const kodeBase = normalizeString(process.env.KODE_CONFIG_DIR);
 
   if (claudeBase)
-    out.push({ claude: resolve(claudeBase), kode: resolve(claudeBase) })
-  if (kodeBase) out.push({ claude: resolve(kodeBase), kode: resolve(kodeBase) })
+    out.push({ claude: resolve(claudeBase), kode: resolve(claudeBase) });
+  if (kodeBase)
+    out.push({ claude: resolve(kodeBase), kode: resolve(kodeBase) });
 
   if (hasAnyOverride) {
-    return dedupeConfigBases(out)
+    return dedupeConfigBases(out);
   }
 
   return dedupeConfigBases([
-    { claude: join(homedir(), '.claude'), kode: join(homedir(), '.claude') },
-    { claude: join(homedir(), '.kode'), kode: join(homedir(), '.kode') },
-  ])
+    { claude: join(homedir(), ".claude"), kode: join(homedir(), ".claude") },
+    { claude: join(homedir(), ".kode"), kode: join(homedir(), ".kode") },
+  ]);
 }
 
 function dedupeConfigBases(
   bases: Array<{ claude: string; kode: string }>,
 ): Array<{ claude: string; kode: string }> {
-  const seen = new Set<string>()
-  const out: Array<{ claude: string; kode: string }> = []
+  const seen = new Set<string>();
+  const out: Array<{ claude: string; kode: string }> = [];
   for (const base of bases) {
-    const key = `${base.claude}::${base.kode}`
-    if (seen.has(key)) continue
-    seen.add(key)
-    out.push(base)
+    const key = `${base.claude}::${base.kode}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(base);
   }
-  return out
+  return out;
 }
 
 function findProjectSubdirs(subdir: string, cwd: string): string[] {
-  const result: string[] = []
-  const home = resolve(homedir())
-  let current = resolve(cwd)
+  const result: string[] = [];
+  const home = resolve(homedir());
+  let current = resolve(cwd);
 
   while (current !== home) {
-    const claudeDir = join(current, '.claude', subdir)
-    if (existsSync(claudeDir)) result.push(claudeDir)
+    const claudeDir = join(current, ".claude", subdir);
+    if (existsSync(claudeDir)) result.push(claudeDir);
 
-    const kodeDir = join(current, '.kode', subdir)
-    if (existsSync(kodeDir)) result.push(kodeDir)
+    const kodeDir = join(current, ".kode", subdir);
+    if (existsSync(kodeDir)) result.push(kodeDir);
 
-    const parent = dirname(current)
-    if (parent === current) break
-    current = parent
+    const parent = dirname(current);
+    if (parent === current) break;
+    current = parent;
   }
 
-  return result
+  return result;
 }
 
 function markdownFirstLineOrHeading(content: string, fallback: string): string {
-  const lines = content.split('\n')
+  const lines = content.split("\n");
   for (const line of lines) {
-    const trimmed = line.trim()
-    if (!trimmed) continue
-    const heading = trimmed.match(/^#+\s+(.+)$/)?.[1] ?? trimmed
-    return heading.length > 100 ? `${heading.substring(0, 97)}...` : heading
+    const trimmed = line.trim();
+    if (!trimmed) continue;
+    const heading = trimmed.match(/^#+\s+(.+)$/)?.[1] ?? trimmed;
+    return heading.length > 100 ? `${heading.substring(0, 97)}...` : heading;
   }
-  return fallback
+  return fallback;
 }
 
 function listMarkdownFilesRecursively(rootDir: string): string[] {
-  const files: string[] = []
-  const visitedDirs = new Set<string>()
+  const files: string[] = [];
+  const visitedDirs = new Set<string>();
 
   const walk = (dirPath: string) => {
-    let dirStat: ReturnType<typeof statSync>
+    let dirStat: ReturnType<typeof statSync>;
     try {
-      dirStat = statSync(dirPath)
+      dirStat = statSync(dirPath);
     } catch {
-      return
+      return;
     }
-    if (!dirStat.isDirectory()) return
+    if (!dirStat.isDirectory()) return;
 
-    const dirKey = `${dirStat.dev}:${dirStat.ino}`
-    if (visitedDirs.has(dirKey)) return
-    visitedDirs.add(dirKey)
+    const dirKey = `${dirStat.dev}:${dirStat.ino}`;
+    if (visitedDirs.has(dirKey)) return;
+    visitedDirs.add(dirKey);
 
     let entries: Array<{
-      name: string
-      isDirectory(): boolean
-      isFile(): boolean
-      isSymbolicLink(): boolean
-    }>
+      name: string;
+      isDirectory(): boolean;
+      isFile(): boolean;
+      isSymbolicLink(): boolean;
+    }>;
     try {
       entries = readdirSync(dirPath, {
         withFileTypes: true,
-        encoding: 'utf8',
-      }) as any
+        encoding: "utf8",
+      }) as any;
     } catch {
-      return
+      return;
     }
 
     for (const entry of entries) {
-      const name = String(entry.name ?? '')
-      const fullPath = join(dirPath, name)
+      const name = String(entry.name ?? "");
+      const fullPath = join(dirPath, name);
 
       if (entry.isDirectory()) {
-        walk(fullPath)
-        continue
+        walk(fullPath);
+        continue;
       }
 
       if (entry.isFile()) {
-        if (name.endsWith('.md')) files.push(fullPath)
-        continue
+        if (name.endsWith(".md")) files.push(fullPath);
+        continue;
       }
 
       if (entry.isSymbolicLink()) {
         try {
-          const st = statSync(fullPath)
+          const st = statSync(fullPath);
           if (st.isDirectory()) {
-            walk(fullPath)
-          } else if (st.isFile() && name.endsWith('.md')) {
-            files.push(fullPath)
+            walk(fullPath);
+          } else if (st.isFile() && name.endsWith(".md")) {
+            files.push(fullPath);
           }
         } catch {
-          continue
+          continue;
         }
       }
     }
-  }
+  };
 
-  if (!existsSync(rootDir)) return []
-  walk(rootDir)
-  return files
+  if (!existsSync(rootDir)) return [];
+  walk(rootDir);
+  return files;
 }
 
 function readMarkdownFile(
   filePath: string,
 ): { frontmatter: any; content: string } | null {
   try {
-    const raw = readFileSync(filePath, 'utf8')
-    const yamlSchema = (yaml as any).JSON_SCHEMA
+    const raw = readFileSync(filePath, "utf8");
+    const yamlSchema = (yaml as any).JSON_SCHEMA;
     const matterOptions = {
       engines: {
         yaml: {
@@ -200,29 +201,29 @@ function readMarkdownFile(
             {},
         },
       },
-    }
-    const parsed = matter(raw, matterOptions)
+    };
+    const parsed = matter(raw, matterOptions);
     return {
       frontmatter: (parsed.data as any) ?? {},
-      content: String(parsed.content ?? ''),
-    }
+      content: String(parsed.content ?? ""),
+    };
   } catch {
-    return null
+    return null;
   }
 }
 
 function inodeKeyForPath(filePath: string): string | null {
   try {
-    const st = statSync(filePath)
+    const st = statSync(filePath);
     if (
-      typeof (st as any).dev === 'number' &&
-      typeof (st as any).ino === 'number'
+      typeof (st as any).dev === "number" &&
+      typeof (st as any).ino === "number"
     ) {
-      return `${(st as any).dev}:${(st as any).ino}`
+      return `${(st as any).dev}:${(st as any).ino}`;
     }
-    return null
+    return null;
   } catch {
-    return null
+    return null;
   }
 }
 
@@ -233,16 +234,16 @@ In order to encourage learning, before and after writing code, always provide br
 [2-3 key educational points]
 \`─────────────────────────────────────────────────\`"
 
-These insights should be included in the conversation, not in the codebase. You should generally focus on interesting insights that are specific to the codebase or the code you just wrote, rather than general programming concepts.`
+These insights should be included in the conversation, not in the codebase. You should generally focus on interesting insights that are specific to the codebase or the code you just wrote, rather than general programming concepts.`;
 
 function getBuiltInOutputStyles(): OutputStyleMap {
   return {
     [DEFAULT_OUTPUT_STYLE]: null,
     Explanatory: {
-      name: 'Explanatory',
-      source: 'built-in',
+      name: "Explanatory",
+      source: "built-in",
       description:
-        'Claude explains its implementation choices and codebase patterns',
+        "Claude explains its implementation choices and codebase patterns",
       keepCodingInstructions: true,
       prompt: `You are an interactive CLI tool that helps users with software engineering tasks. In addition to software engineering tasks, you should provide educational insights about the codebase along the way.
 
@@ -252,10 +253,10 @@ You should be clear and educational, providing helpful explanations while remain
 ${INSIGHTS_SECTION}`,
     },
     Learning: {
-      name: 'Learning',
-      source: 'built-in',
+      name: "Learning",
+      source: "built-in",
       description:
-        'Claude pauses and asks you to write small pieces of code for hands-on practice',
+        "Claude pauses and asks you to write small pieces of code for hands-on practice",
       keepCodingInstructions: true,
       prompt: `You are an interactive CLI tool that helps users with software engineering tasks. In addition to software engineering tasks, you should help users learn more about the codebase through hands-on practice and educational insights.
 
@@ -330,31 +331,31 @@ Share one insight connecting their code to broader patterns or system effects. A
 ## Insights
 ${INSIGHTS_SECTION}`,
     },
-  }
+  };
 }
 
 function parseKeepCodingInstructions(value: unknown): boolean | undefined {
-  if (value === 'true') return true
-  if (value === 'false') return false
-  return undefined
+  if (value === "true") return true;
+  if (value === "false") return false;
+  return undefined;
 }
 
 function parseCustomOutputStyleFile(options: {
-  filePath: string
-  source: Exclude<OutputStyleSource, 'built-in' | 'plugin'>
+  filePath: string;
+  source: Exclude<OutputStyleSource, "built-in" | "plugin">;
 }): OutputStyleDefinition | null {
-  const parsed = readMarkdownFile(options.filePath)
-  if (!parsed) return null
+  const parsed = readMarkdownFile(options.filePath);
+  if (!parsed) return null;
 
-  const base = basename(options.filePath, '.md')
-  const name = normalizeString(parsed.frontmatter?.name) ?? base
+  const base = basename(options.filePath, ".md");
+  const name = normalizeString(parsed.frontmatter?.name) ?? base;
   const description =
     normalizeString(parsed.frontmatter?.description) ??
-    markdownFirstLineOrHeading(parsed.content, `Custom ${base} output style`)
+    markdownFirstLineOrHeading(parsed.content, `Custom ${base} output style`);
   const keepCodingInstructions = parseKeepCodingInstructions(
-    parsed.frontmatter?.['keep-coding-instructions'],
-  )
-  const prompt = parsed.content.trim()
+    parsed.frontmatter?.["keep-coding-instructions"],
+  );
+  const prompt = parsed.content.trim();
 
   return {
     name,
@@ -362,198 +363,198 @@ function parseCustomOutputStyleFile(options: {
     prompt,
     source: options.source,
     ...(keepCodingInstructions !== undefined ? { keepCodingInstructions } : {}),
-  }
+  };
 }
 
 function parsePluginOutputStyleFile(options: {
-  filePath: string
-  pluginName: string
-  seen: Set<string>
+  filePath: string;
+  pluginName: string;
+  seen: Set<string>;
 }): OutputStyleDefinition | null {
-  const inodeKey = inodeKeyForPath(options.filePath)
-  const dedupeKey = inodeKey ? `inode:${inodeKey}` : `path:${options.filePath}`
-  if (options.seen.has(dedupeKey)) return null
-  options.seen.add(dedupeKey)
+  const inodeKey = inodeKeyForPath(options.filePath);
+  const dedupeKey = inodeKey ? `inode:${inodeKey}` : `path:${options.filePath}`;
+  if (options.seen.has(dedupeKey)) return null;
+  options.seen.add(dedupeKey);
 
-  const parsed = readMarkdownFile(options.filePath)
-  if (!parsed) return null
+  const parsed = readMarkdownFile(options.filePath);
+  if (!parsed) return null;
 
-  const base = basename(options.filePath, '.md')
-  const styleName = normalizeString(parsed.frontmatter?.name) ?? base
-  const fullName = `${options.pluginName}:${styleName}`
+  const base = basename(options.filePath, ".md");
+  const styleName = normalizeString(parsed.frontmatter?.name) ?? base;
+  const fullName = `${options.pluginName}:${styleName}`;
   const description =
     normalizeString(parsed.frontmatter?.description) ??
     markdownFirstLineOrHeading(
       parsed.content,
       `Output style from ${options.pluginName} plugin`,
-    )
-  const prompt = parsed.content.trim()
+    );
+  const prompt = parsed.content.trim();
 
   return {
     name: fullName,
     description,
     prompt,
-    source: 'plugin',
-  }
+    source: "plugin",
+  };
 }
 
 function loadPluginOutputStyles(): OutputStyleDefinition[] {
-  const out: OutputStyleDefinition[] = []
-  const plugins = getSessionPlugins()
+  const out: OutputStyleDefinition[] = [];
+  const plugins = getSessionPlugins();
   for (const plugin of plugins) {
-    const pluginName = plugin.name
-    const seen = new Set<string>()
+    const pluginName = plugin.name;
+    const seen = new Set<string>();
     for (const dir of plugin.outputStylesDirs ?? []) {
-      let st: ReturnType<typeof statSync>
+      let st: ReturnType<typeof statSync>;
       try {
-        st = statSync(dir)
+        st = statSync(dir);
       } catch {
-        continue
+        continue;
       }
       if (st.isFile()) {
-        if (!dir.endsWith('.md')) continue
+        if (!dir.endsWith(".md")) continue;
         const style = parsePluginOutputStyleFile({
           filePath: dir,
           pluginName,
           seen,
-        })
-        if (style) out.push(style)
-        continue
+        });
+        if (style) out.push(style);
+        continue;
       }
 
       if (st.isDirectory()) {
-        const files = listMarkdownFilesRecursively(dir)
+        const files = listMarkdownFilesRecursively(dir);
         for (const filePath of files) {
           const style = parsePluginOutputStyleFile({
             filePath,
             pluginName,
             seen,
-          })
-          if (style) out.push(style)
+          });
+          if (style) out.push(style);
         }
       }
     }
   }
-  return out
+  return out;
 }
 
 function loadCustomOutputStyles(options: {
-  cwd: string
+  cwd: string;
 }): OutputStyleDefinition[] {
-  const out: OutputStyleDefinition[] = []
-  const seen = new Set<string>()
+  const out: OutputStyleDefinition[] = [];
+  const seen = new Set<string>();
 
-  const policyDir = join(getClaudePolicyBaseDir(), '.claude', 'output-styles')
+  const policyDir = join(getClaudePolicyBaseDir(), ".claude", "output-styles");
   for (const filePath of listMarkdownFilesRecursively(policyDir)) {
-    const inodeKey = inodeKeyForPath(filePath)
-    const dedupeKey = inodeKey ? `inode:${inodeKey}` : `path:${filePath}`
-    if (seen.has(dedupeKey)) continue
-    seen.add(dedupeKey)
+    const inodeKey = inodeKeyForPath(filePath);
+    const dedupeKey = inodeKey ? `inode:${inodeKey}` : `path:${filePath}`;
+    if (seen.has(dedupeKey)) continue;
+    seen.add(dedupeKey);
     const style = parseCustomOutputStyleFile({
       filePath,
-      source: 'policySettings',
-    })
-    if (style) out.push(style)
+      source: "policySettings",
+    });
+    if (style) out.push(style);
   }
 
-  if (isSettingSourceEnabled('userSettings')) {
-    const userBases = getUserConfigBaseDirs()
+  if (isSettingSourceEnabled("userSettings")) {
+    const userBases = getUserConfigBaseDirs();
     for (const base of userBases) {
       for (const userBaseDir of new Set([base.claude, base.kode])) {
-        const dirPath = join(userBaseDir, 'output-styles')
+        const dirPath = join(userBaseDir, "output-styles");
         for (const filePath of listMarkdownFilesRecursively(dirPath)) {
-          const inodeKey = inodeKeyForPath(filePath)
-          const dedupeKey = inodeKey ? `inode:${inodeKey}` : `path:${filePath}`
-          if (seen.has(dedupeKey)) continue
-          seen.add(dedupeKey)
+          const inodeKey = inodeKeyForPath(filePath);
+          const dedupeKey = inodeKey ? `inode:${inodeKey}` : `path:${filePath}`;
+          if (seen.has(dedupeKey)) continue;
+          seen.add(dedupeKey);
           const style = parseCustomOutputStyleFile({
             filePath,
-            source: 'userSettings',
-          })
-          if (style) out.push(style)
+            source: "userSettings",
+          });
+          if (style) out.push(style);
         }
       }
     }
   }
 
-  if (isSettingSourceEnabled('projectSettings')) {
-    for (const dirPath of findProjectSubdirs('output-styles', options.cwd)) {
+  if (isSettingSourceEnabled("projectSettings")) {
+    for (const dirPath of findProjectSubdirs("output-styles", options.cwd)) {
       for (const filePath of listMarkdownFilesRecursively(dirPath)) {
-        const inodeKey = inodeKeyForPath(filePath)
-        const dedupeKey = inodeKey ? `inode:${inodeKey}` : `path:${filePath}`
-        if (seen.has(dedupeKey)) continue
-        seen.add(dedupeKey)
+        const inodeKey = inodeKeyForPath(filePath);
+        const dedupeKey = inodeKey ? `inode:${inodeKey}` : `path:${filePath}`;
+        if (seen.has(dedupeKey)) continue;
+        seen.add(dedupeKey);
         const style = parseCustomOutputStyleFile({
           filePath,
-          source: 'projectSettings',
-        })
-        if (style) out.push(style)
+          source: "projectSettings",
+        });
+        if (style) out.push(style);
       }
     }
   }
 
-  return out
+  return out;
 }
 
 export const getAvailableOutputStyles = memoize((): OutputStyleMap => {
-  const cwd = getCwd()
-  const builtIn = getBuiltInOutputStyles()
-  const merged: OutputStyleMap = { ...builtIn }
+  const cwd = getCwd();
+  const builtIn = getBuiltInOutputStyles();
+  const merged: OutputStyleMap = { ...builtIn };
 
   for (const style of loadPluginOutputStyles()) {
-    merged[style.name] = style
+    merged[style.name] = style;
   }
 
-  const custom = loadCustomOutputStyles({ cwd })
-  const user = custom.filter(s => s.source === 'userSettings')
-  const project = custom.filter(s => s.source === 'projectSettings')
-  const policy = custom.filter(s => s.source === 'policySettings')
+  const custom = loadCustomOutputStyles({ cwd });
+  const user = custom.filter((s) => s.source === "userSettings");
+  const project = custom.filter((s) => s.source === "projectSettings");
+  const policy = custom.filter((s) => s.source === "policySettings");
 
-  for (const style of user) merged[style.name] = style
-  for (const style of project) merged[style.name] = style
-  for (const style of policy) merged[style.name] = style
+  for (const style of user) merged[style.name] = style;
+  for (const style of project) merged[style.name] = style;
+  for (const style of policy) merged[style.name] = style;
 
-  return merged
-})
+  return merged;
+});
 
 export function clearOutputStyleCache(): void {
-  ;(getAvailableOutputStyles as any).cache?.clear?.()
+  (getAvailableOutputStyles as any).cache?.clear?.();
 }
 
 export function getCurrentOutputStyle(): string {
-  if (!isSettingSourceEnabled('localSettings')) return DEFAULT_OUTPUT_STYLE
+  if (!isSettingSourceEnabled("localSettings")) return DEFAULT_OUTPUT_STYLE;
 
-  const settings = readLocalSettings()
-  const candidate = normalizeString(settings.outputStyle)
-  return candidate ?? DEFAULT_OUTPUT_STYLE
+  const settings = readLocalSettings();
+  const candidate = normalizeString(settings.outputStyle);
+  return candidate ?? DEFAULT_OUTPUT_STYLE;
 }
 
 export function setCurrentOutputStyle(styleName: string): void {
-  updateLocalSettings({ outputStyle: styleName })
+  updateLocalSettings({ outputStyle: styleName });
 }
 
 export function resolveOutputStyleName(input: string): string | null {
-  const raw = normalizeString(input)
-  if (!raw) return null
-  const styles = getAvailableOutputStyles()
-  if (raw in styles) return raw
-  const lower = raw.toLowerCase()
+  const raw = normalizeString(input);
+  if (!raw) return null;
+  const styles = getAvailableOutputStyles();
+  if (raw in styles) return raw;
+  const lower = raw.toLowerCase();
   for (const name of Object.keys(styles)) {
-    if (name.toLowerCase() === lower) return name
+    if (name.toLowerCase() === lower) return name;
   }
-  return null
+  return null;
 }
 
 export function getCurrentOutputStyleDefinition(): OutputStyleDefinition | null {
-  const current = getCurrentOutputStyle()
-  const styles = getAvailableOutputStyles()
-  return styles[current] ?? null
+  const current = getCurrentOutputStyle();
+  const styles = getAvailableOutputStyles();
+  return styles[current] ?? null;
 }
 
 export function getOutputStyleSystemPromptAdditions(): string[] {
-  const style = getCurrentOutputStyleDefinition()
-  if (!style) return []
-  const prompt = style.prompt.trim()
-  if (!prompt) return []
-  return [`\n# Output Style: ${style.name}\n${prompt}\n`]
+  const style = getCurrentOutputStyleDefinition();
+  if (!style) return [];
+  const prompt = style.prompt.trim();
+  if (!prompt) return [];
+  return [`\n# Output Style: ${style.name}\n${prompt}\n`];
 }

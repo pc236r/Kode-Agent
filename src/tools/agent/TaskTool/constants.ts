@@ -1,1 +1,1 @@
-export const TOOL_NAME = 'Task'
+export const TOOL_NAME = "Task";

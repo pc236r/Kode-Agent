@@ -1,4 +1,4 @@
-export const TOOL_NAME_FOR_PROMPT = 'WebFetch';
+export const TOOL_NAME_FOR_PROMPT = "WebFetch";
 export const PROMPT = `
 - Fetches content from a specified URL and processes it using an AI model
 - Takes a URL and a prompt as input

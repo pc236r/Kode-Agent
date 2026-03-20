@@ -1,25 +1,25 @@
-import { statSync, existsSync, watchFile, unwatchFile } from 'fs'
+import { statSync, existsSync, watchFile, unwatchFile } from "fs";
 import {
   emitReminderEvent,
   systemReminderService,
-} from '@services/systemReminder'
-import { getAgentFilePath } from '@utils/agent/storage'
-import { debug as debugLogger } from '@utils/log/debugLogger'
-import { logError } from '@utils/log'
+} from "@services/systemReminder";
+import { getAgentFilePath } from "@utils/agent/storage";
+import { debug as debugLogger } from "@utils/log/debugLogger";
+import { logError } from "@utils/log";
 
 interface FileTimestamp {
-  path: string
-  lastRead: number
-  lastModified: number
-  size: number
-  lastAgentEdit?: number
+  path: string;
+  lastRead: number;
+  lastModified: number;
+  size: number;
+  lastAgentEdit?: number;
 }
 
 interface FileFreshnessState {
-  readTimestamps: Map<string, FileTimestamp>
-  editConflicts: Set<string>
-  sessionFiles: Set<string>
-  watchedTodoFiles: Map<string, string>
+  readTimestamps: Map<string, FileTimestamp>;
+  editConflicts: Set<string>;
+  sessionFiles: Set<string>;
+  watchedTodoFiles: Map<string, string>;
 }
 
 class FileFreshnessService {
@@ -28,84 +28,84 @@ class FileFreshnessService {
     editConflicts: new Set(),
     sessionFiles: new Set(),
     watchedTodoFiles: new Map(),
-  }
+  };
 
   constructor() {
-    this.setupEventListeners()
+    this.setupEventListeners();
   }
 
   private setupEventListeners(): void {
     systemReminderService.addEventListener(
-      'session:startup',
+      "session:startup",
       (context: any) => {
-        this.resetSession()
+        this.resetSession();
       },
-    )
+    );
   }
 
   public recordFileRead(filePath: string): void {
     try {
       if (!existsSync(filePath)) {
-        return
+        return;
       }
 
-      const stats = statSync(filePath)
+      const stats = statSync(filePath);
       const timestamp: FileTimestamp = {
         path: filePath,
         lastRead: Date.now(),
         lastModified: stats.mtimeMs,
         size: stats.size,
-      }
+      };
 
-      this.state.readTimestamps.set(filePath, timestamp)
-      this.state.sessionFiles.add(filePath)
+      this.state.readTimestamps.set(filePath, timestamp);
+      this.state.sessionFiles.add(filePath);
 
-      emitReminderEvent('file:read', {
+      emitReminderEvent("file:read", {
         filePath,
         timestamp: timestamp.lastRead,
         size: timestamp.size,
         modified: timestamp.lastModified,
-      })
+      });
     } catch (error) {
-      logError(error)
-      debugLogger.warn('FILE_FRESHNESS_RECORD_READ_FAILED', {
+      logError(error);
+      debugLogger.warn("FILE_FRESHNESS_RECORD_READ_FAILED", {
         filePath,
         error: error instanceof Error ? error.message : String(error),
-      })
+      });
     }
   }
 
   public checkFileFreshness(filePath: string): {
-    isFresh: boolean
-    lastRead?: number
-    currentModified?: number
-    conflict: boolean
+    isFresh: boolean;
+    lastRead?: number;
+    currentModified?: number;
+    conflict: boolean;
   } {
-    const recorded = this.state.readTimestamps.get(filePath)
+    const recorded = this.state.readTimestamps.get(filePath);
 
     if (!recorded) {
-      return { isFresh: true, conflict: false }
+      return { isFresh: true, conflict: false };
     }
 
     try {
       if (!existsSync(filePath)) {
-        return { isFresh: false, conflict: true }
+        return { isFresh: false, conflict: true };
       }
 
-      const currentStats = statSync(filePath)
-      const isFresh = currentStats.mtimeMs <= recorded.lastModified
-      const conflict = !isFresh
+      const currentStats = statSync(filePath);
+      const isFresh = currentStats.mtimeMs <= recorded.lastModified;
+      const conflict = !isFresh;
 
       if (conflict) {
-        this.state.editConflicts.add(filePath)
+        this.state.editConflicts.add(filePath);
 
-        emitReminderEvent('file:conflict', {
+        emitReminderEvent("file:conflict", {
           filePath,
           lastRead: recorded.lastRead,
           lastModified: recorded.lastModified,
           currentModified: currentStats.mtimeMs,
           sizeDiff: currentStats.size - recorded.size,
-        })
+        });
       }
 
       return {
@@ -113,30 +113,30 @@ class FileFreshnessService {
         lastRead: recorded.lastRead,
         currentModified: currentStats.mtimeMs,
         conflict,
-      }
+      };
     } catch (error) {
-      logError(error)
-      debugLogger.warn('FILE_FRESHNESS_CHECK_FAILED', {
+      logError(error);
+      debugLogger.warn("FILE_FRESHNESS_CHECK_FAILED", {
         filePath,
         error: error instanceof Error ? error.message : String(error),
-      })
-      return { isFresh: false, conflict: true }
+      });
+      return { isFresh: false, conflict: true };
     }
   }
 
   public recordFileEdit(filePath: string, content?: string): void {
     try {
-      const now = Date.now()
+      const now = Date.now();
 
       if (existsSync(filePath)) {
-        const stats = statSync(filePath)
-        const existing = this.state.readTimestamps.get(filePath)
+        const stats = statSync(filePath);
+        const existing = this.state.readTimestamps.get(filePath);
 
         if (existing) {
-          existing.lastModified = stats.mtimeMs
-          existing.size = stats.size
-          existing.lastAgentEdit = now
-          this.state.readTimestamps.set(filePath, existing)
+          existing.lastModified = stats.mtimeMs;
+          existing.size = stats.size;
+          existing.lastAgentEdit = now;
+          this.state.readTimestamps.set(filePath, existing);
         } else {
           const timestamp: FileTimestamp = {
             path: filePath,
@@ -144,159 +144,159 @@ class FileFreshnessService {
             lastModified: stats.mtimeMs,
             size: stats.size,
             lastAgentEdit: now,
-          }
-          this.state.readTimestamps.set(filePath, timestamp)
+          };
+          this.state.readTimestamps.set(filePath, timestamp);
         }
       }
 
-      this.state.editConflicts.delete(filePath)
+      this.state.editConflicts.delete(filePath);
 
-      emitReminderEvent('file:edited', {
+      emitReminderEvent("file:edited", {
         filePath,
         timestamp: now,
         contentLength: content?.length || 0,
-        source: 'agent',
-      })
+        source: "agent",
+      });
     } catch (error) {
-      logError(error)
-      debugLogger.warn('FILE_FRESHNESS_RECORD_EDIT_FAILED', {
+      logError(error);
+      debugLogger.warn("FILE_FRESHNESS_RECORD_EDIT_FAILED", {
         filePath,
         error: error instanceof Error ? error.message : String(error),
-      })
+      });
     }
   }
 
   public generateFileModificationReminder(filePath: string): string | null {
-    const recorded = this.state.readTimestamps.get(filePath)
+    const recorded = this.state.readTimestamps.get(filePath);
 
     if (!recorded) {
-      return null
+      return null;
     }
 
     try {
       if (!existsSync(filePath)) {
-        return `Note: ${filePath} was deleted since last read.`
+        return `Note: ${filePath} was deleted since last read.`;
       }
 
-      const currentStats = statSync(filePath)
-      const isModified = currentStats.mtimeMs > recorded.lastModified
+      const currentStats = statSync(filePath);
+      const isModified = currentStats.mtimeMs > recorded.lastModified;
 
       if (!isModified) {
-        return null
+        return null;
       }
 
-      const TIME_TOLERANCE_MS = 100
+      const TIME_TOLERANCE_MS = 100;
       if (
         recorded.lastAgentEdit &&
         recorded.lastAgentEdit >= recorded.lastModified - TIME_TOLERANCE_MS
       ) {
-        return null
+        return null;
       }
 
-      return `Note: ${filePath} was modified externally since last read. The file may have changed outside of this session.`
+      return `Note: ${filePath} was modified externally since last read. The file may have changed outside of this session.`;
     } catch (error) {
-      logError(error)
-      debugLogger.warn('FILE_FRESHNESS_CHECK_MODIFICATION_FAILED', {
+      logError(error);
+      debugLogger.warn("FILE_FRESHNESS_CHECK_MODIFICATION_FAILED", {
         filePath,
         error: error instanceof Error ? error.message : String(error),
-      })
-      return null
+      });
+      return null;
     }
   }
 
   public getConflictedFiles(): string[] {
-    return Array.from(this.state.editConflicts)
+    return Array.from(this.state.editConflicts);
   }
 
   public getSessionFiles(): string[] {
-    return Array.from(this.state.sessionFiles)
+    return Array.from(this.state.sessionFiles);
   }
 
   public resetSession(): void {
-    this.state.watchedTodoFiles.forEach(filePath => {
+    this.state.watchedTodoFiles.forEach((filePath) => {
       try {
-        unwatchFile(filePath)
+        unwatchFile(filePath);
       } catch (error) {
-        logError(error)
-        debugLogger.warn('FILE_FRESHNESS_UNWATCH_FAILED', {
+        logError(error);
+        debugLogger.warn("FILE_FRESHNESS_UNWATCH_FAILED", {
           filePath,
           error: error instanceof Error ? error.message : String(error),
-        })
+        });
       }
-    })
+    });
 
     this.state = {
       readTimestamps: new Map(),
       editConflicts: new Set(),
       sessionFiles: new Set(),
       watchedTodoFiles: new Map(),
-    }
+    };
   }
 
   public startWatchingTodoFile(agentId: string): void {
     try {
-      const filePath = getAgentFilePath(agentId)
+      const filePath = getAgentFilePath(agentId);
 
       if (this.state.watchedTodoFiles.has(agentId)) {
-        return
+        return;
       }
 
-      this.state.watchedTodoFiles.set(agentId, filePath)
+      this.state.watchedTodoFiles.set(agentId, filePath);
 
       if (existsSync(filePath)) {
-        this.recordFileRead(filePath)
+        this.recordFileRead(filePath);
       }
 
       watchFile(filePath, { interval: 1000 }, (curr, prev) => {
-        const reminder = this.generateFileModificationReminder(filePath)
+        const reminder = this.generateFileModificationReminder(filePath);
         if (reminder) {
-          emitReminderEvent('todo:file_changed', {
+          emitReminderEvent("todo:file_changed", {
             agentId,
             filePath,
             reminder,
             timestamp: Date.now(),
             currentStats: { mtime: curr.mtime, size: curr.size },
             previousStats: { mtime: prev.mtime, size: prev.size },
-          })
+          });
         }
-      })
+      });
     } catch (error) {
-      logError(error)
-      debugLogger.warn('FILE_FRESHNESS_TODO_WATCH_START_FAILED', {
+      logError(error);
+      debugLogger.warn("FILE_FRESHNESS_TODO_WATCH_START_FAILED", {
         agentId,
         error: error instanceof Error ? error.message : String(error),
-      })
+      });
     }
   }
 
   public stopWatchingTodoFile(agentId: string): void {
     try {
-      const filePath = this.state.watchedTodoFiles.get(agentId)
+      const filePath = this.state.watchedTodoFiles.get(agentId);
       if (filePath) {
-        unwatchFile(filePath)
-        this.state.watchedTodoFiles.delete(agentId)
+        unwatchFile(filePath);
+        this.state.watchedTodoFiles.delete(agentId);
       }
     } catch (error) {
-      logError(error)
-      debugLogger.warn('FILE_FRESHNESS_TODO_WATCH_STOP_FAILED', {
+      logError(error);
+      debugLogger.warn("FILE_FRESHNESS_TODO_WATCH_STOP_FAILED", {
         agentId,
         error: error instanceof Error ? error.message : String(error),
-      })
+      });
     }
   }
 
   public getFileInfo(filePath: string): FileTimestamp | null {
-    return this.state.readTimestamps.get(filePath) || null
+    return this.state.readTimestamps.get(filePath) || null;
   }
 
   public isFileTracked(filePath: string): boolean {
-    return this.state.readTimestamps.has(filePath)
+    return this.state.readTimestamps.has(filePath);
   }
 
   public getImportantFiles(maxFiles: number = 5): Array<{
-    path: string
-    timestamp: number
-    size: number
+    path: string;
+    timestamp: number;
+    size: number;
   }> {
     return Array.from(this.state.readTimestamps.entries())
       .map(([path, info]) => ({
@@ -304,36 +304,36 @@ class FileFreshnessService {
         timestamp: info.lastRead,
         size: info.size,
       }))
-      .filter(file => this.isValidForRecovery(file.path))
+      .filter((file) => this.isValidForRecovery(file.path))
       .sort((a, b) => b.timestamp - a.timestamp)
-      .slice(0, maxFiles)
+      .slice(0, maxFiles);
   }
 
   private isValidForRecovery(filePath: string): boolean {
     return (
-      !filePath.includes('node_modules') &&
-      !filePath.includes('.git') &&
-      !filePath.startsWith('/tmp') &&
-      !filePath.includes('.cache') &&
-      !filePath.includes('dist/') &&
-      !filePath.includes('build/')
-    )
+      !filePath.includes("node_modules") &&
+      !filePath.includes(".git") &&
+      !filePath.startsWith("/tmp") &&
+      !filePath.includes(".cache") &&
+      !filePath.includes("dist/") &&
+      !filePath.includes("build/")
+    );
   }
 }
 
-export const fileFreshnessService = new FileFreshnessService()
+export const fileFreshnessService = new FileFreshnessService();
 
 export const recordFileRead = (filePath: string) =>
-  fileFreshnessService.recordFileRead(filePath)
+  fileFreshnessService.recordFileRead(filePath);
 export const recordFileEdit = (filePath: string, content?: string) =>
-  fileFreshnessService.recordFileEdit(filePath, content)
+  fileFreshnessService.recordFileEdit(filePath, content);
 export const checkFileFreshness = (filePath: string) =>
-  fileFreshnessService.checkFileFreshness(filePath)
+  fileFreshnessService.checkFileFreshness(filePath);
 export const generateFileModificationReminder = (filePath: string) =>
-  fileFreshnessService.generateFileModificationReminder(filePath)
+  fileFreshnessService.generateFileModificationReminder(filePath);
 export const resetFileFreshnessSession = () =>
-  fileFreshnessService.resetSession()
+  fileFreshnessService.resetSession();
 export const startWatchingTodoFile = (agentId: string) =>
-  fileFreshnessService.startWatchingTodoFile(agentId)
+  fileFreshnessService.startWatchingTodoFile(agentId);
 export const stopWatchingTodoFile = (agentId: string) =>
-  fileFreshnessService.stopWatchingTodoFile(agentId)
+  fileFreshnessService.stopWatchingTodoFile(agentId);

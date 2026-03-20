@@ -18,15 +18,15 @@ export type {
   ProjectConfigKey,
   ProjectMcpServerDefinitions,
   ProviderType,
-} from './schema'
+} from "./schema";
 export {
   GLOBAL_CONFIG_KEYS,
   PROJECT_CONFIG_KEYS,
   isAutoUpdaterStatus,
   isGlobalConfigKey,
   isProjectConfigKey,
-} from './schema'
-export { DEFAULT_GLOBAL_CONFIG } from './defaults'
+} from "./schema";
+export { DEFAULT_GLOBAL_CONFIG } from "./defaults";
 export {
   TEST_MCPRC_CONFIG_FOR_TESTING,
   addMcprcServerForTesting,
@@ -50,7 +50,7 @@ export {
   saveCurrentProjectConfig,
   saveGlobalConfig,
   setConfigForCLI,
-} from './loader'
+} from "./loader";
 export {
   createGPT5ModelProfile,
   getGPT5ConfigRecommendations,
@@ -59,4 +59,4 @@ export {
   setModelPointer,
   validateAndRepairAllGPT5Profiles,
   validateAndRepairGPT5Profile,
-} from './validator'
+} from "./validator";

@@ -1,16 +1,16 @@
-import type { Message as ConversationMessage } from '@query'
+import type { Message as ConversationMessage } from "@query";
 
-const transcripts = new Map<string, ConversationMessage[]>()
+const transcripts = new Map<string, ConversationMessage[]>();
 
 export function saveAgentTranscript(
   agentId: string,
   messages: ConversationMessage[],
 ): void {
-  transcripts.set(agentId, messages)
+  transcripts.set(agentId, messages);
 }
 
 export function getAgentTranscript(
   agentId: string,
 ): ConversationMessage[] | undefined {
-  return transcripts.get(agentId)
+  return transcripts.get(agentId);
 }

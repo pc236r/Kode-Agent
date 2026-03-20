@@ -1,6 +1,6 @@
-import { useEffect } from 'react'
-import { type Message } from '@query'
-import { overwriteLog, getMessagesPath } from '@utils/log'
+import { useEffect } from "react";
+import { type Message } from "@query";
+import { overwriteLog, getMessagesPath } from "@utils/log";
 
 export function useLogMessages(
   messages: Message[],
@@ -10,8 +10,8 @@ export function useLogMessages(
   useEffect(() => {
     overwriteLog(
       getMessagesPath(messageLogName, forkNumber, 0),
-      messages.filter(_ => _.type !== 'progress'),
+      messages.filter((_) => _.type !== "progress"),
       { conversationKey: `${messageLogName}:${forkNumber}` },
-    )
-  }, [messages, messageLogName, forkNumber])
+    );
+  }, [messages, messageLogName, forkNumber]);
 }
