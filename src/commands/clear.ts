@@ -27,7 +27,7 @@ export async function clearConversation(context: {
 const clear = {
   type: 'local',
   name: 'clear',
-  description: 'Clear conversation history and free up context',
+  description: '清除对话历史并释放上下文',
   isEnabled: true,
   isHidden: false,
   async call(_, context) {

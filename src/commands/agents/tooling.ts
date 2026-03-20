@@ -17,18 +17,18 @@ export const TOOL_CATEGORIES = {
 
 function getCoreTools(): Tool[] {
   const tools: Tool[] = [
-    { name: 'Read', description: 'Read files from filesystem' },
-    { name: 'Write', description: 'Write files to filesystem' },
-    { name: 'Edit', description: 'Edit existing files' },
-    { name: 'MultiEdit', description: 'Make multiple edits to files' },
-    { name: 'NotebookEdit', description: 'Edit Jupyter notebooks' },
-    { name: 'Bash', description: 'Execute bash commands' },
-    { name: 'Glob', description: 'Find files matching patterns' },
-    { name: 'Grep', description: 'Search file contents' },
-    { name: 'LS', description: 'List directory contents' },
-    { name: 'WebFetch', description: 'Fetch web content' },
-    { name: 'WebSearch', description: 'Search the web' },
-    { name: 'TodoWrite', description: 'Manage task lists' },
+    { name: 'Read', description: '从文件系统读取文件' },
+    { name: 'Write', description: '写入文件到文件系统' },
+    { name: 'Edit', description: '编辑现有文件' },
+    { name: 'MultiEdit', description: '对文件进行多次编辑' },
+    { name: 'NotebookEdit', description: '编辑 Jupyter 笔记本' },
+    { name: 'Bash', description: '执行 bash 命令' },
+    { name: 'Glob', description: '查找匹配模式的文件' },
+    { name: 'Grep', description: '搜索文件内容' },
+    { name: 'LS', description: '列出目录内容' },
+    { name: 'WebFetch', description: '获取网页内容' },
+    { name: 'WebSearch', description: '搜索网页' },
+    { name: 'TodoWrite', description: '管理任务列表' },
   ]
 
   return tools.filter(t => t.name !== 'Task' && t.name !== 'ExitPlanMode')

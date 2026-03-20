@@ -5,7 +5,7 @@ import * as React from 'react'
 const config = {
   type: 'local-jsx',
   name: 'config',
-  description: 'Open config panel',
+  description: '打开配置面板',
   isEnabled: true,
   isHidden: false,
   async call(onDone) {

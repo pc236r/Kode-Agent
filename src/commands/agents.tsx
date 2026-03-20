@@ -3,7 +3,7 @@ import { AgentsUI } from './agents/ui'
 
 export default {
   name: 'agents',
-  description: 'Manage agent configurations',
+  description: '管理代理配置',
   type: 'local-jsx' as const,
   isEnabled: true,
   isHidden: false,
