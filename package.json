@@ -1,6 +1,6 @@
 {
-  "name": "kode-minimal",
-  "version": "1.0.0",
+  "name": "@shareai-lab/kode",
+  "version": "2.0.2",
   "bin": {
     "kode": "cli.js",
     "kwa": "cli.js",
@@ -11,14 +11,50 @@
     "node": ">=20.18.1"
   },
   "main": "cli.js",
-  "author": "Your Name",
+  "author": "ShareAI-lab <ai-lab@foxmail.com>",
   "license": "Apache-2.0",
-  "description": "Minimal version of Kode CLI - AI-powered terminal assistant",
+  "description": "AI-powered terminal assistant that understands your codebase, edits files, runs commands, and automates development workflows.",
+  "homepage": "https://github.com/shareAI-lab/kode",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/shareAI-lab/kode.git"
+  },
+  "bugs": {
+    "url": "https://github.com/shareAI-lab/kode/issues"
+  },
+  "files": [
+    "cli.js",
+    "cli-acp.js",
+    "yoga.wasm",
+    "dist/**/*",
+    "scripts/binary-utils.cjs",
+    "scripts/cli-wrapper.cjs",
+    "scripts/cli-acp-wrapper.cjs",
+    "scripts/postinstall.js",
+    ".npmrc"
+  ],
   "scripts": {
-    "dev": "tsx src/entrypoints/cli.tsx --verbose",
-    "build": "tsc && node scripts/build-simple.js",
-    "typecheck": "tsc --noEmit",
-    "test": "echo 'Tests not available in minimal version'"
+    "dev": "bun run ./src/entrypoints/cli.tsx --verbose",
+    "build:npm": "bun run scripts/build.mjs",
+    "build": "bun run build:npm",
+    "build:binary": "bun run scripts/build-binary.mjs",
+    "clean": "bun run scripts/clean.mjs",
+    "prepublishOnly": "bun run build:npm && bun run scripts/prepublish-check.js",
+    "postinstall": "node scripts/postinstall.js || true",
+    "format": "prettier --write \"src/**/*.{ts,tsx,js,jsx,json}\" \"tests/**/*.{ts,tsx,js,jsx,json}\"",
+    "format:check": "prettier --check \"src/**/*.{ts,tsx,js,jsx,json}\" \"tests/**/*.{ts,tsx,js,jsx,json}\"",
+    "lint": "eslint . --ext .ts,.tsx,.js --max-warnings 0",
+    "lint:fix": "eslint . --ext .ts,.tsx,.js --fix",
+    "test": "bun test",
+    "test:unit": "bun test tests/unit",
+    "test:integration": "bun test tests/integration",
+    "test:e2e": "bun test tests/e2e",
+    "typecheck": "bun x tsc --noEmit",
+    "prepare": "bun run scripts/install-hooks.mjs",
+    "publish:dev": "bun run scripts/publish-dev.js",
+    "publish:release": "bun run scripts/publish-release.js",
+    "bench:startup": "bun run scripts/bench-startup.mjs",
+    "parity:reference": "bun run scripts/reference-parity-check.mjs"
   },
   "dependencies": {
     "@anthropic-ai/bedrock-sdk": "^0.12.6",
@@ -88,5 +124,9 @@
     "react-devtools-core": "^7.0.1",
     "tsx": "^4.20.3",
     "typescript": "^5.9.2"
+  },
+  "overrides": {
+    "@aws-sdk/client-bedrock-runtime": "3.797.0",
+    "@smithy/smithy-client": "2.5.1"
   }
 }
